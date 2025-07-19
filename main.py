@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -18,7 +19,7 @@ try:
     from twelvelabs import TwelveLabs
     TWELVELABS_AVAILABLE = True
 except ImportError:
-    print("Warning: Twelvelabs SDK not installed. Install with: pip install twelvelabs-python")
+    print("Warning: Twelvelabs SDK not installed. Install with: pip install twelvelabs")
     TWELVELABS_AVAILABLE = False
 
 # Load environment variables
@@ -177,17 +178,17 @@ async def process_video_with_twelvelabs(client_id: str, session: Dict):
                     break
             
             if not index:
-                # Create new index with comprehensive analysis engines
+                # Create new index with comprehensive analysis models
                 index = twelvelabs_client.index.create(
                     name=index_name,
-                    engines=[
+                    models=[
                         {
-                            "name": "marengo2.6",
-                            "options": ["visual", "conversation", "text_in_video", "logo"]
+                            "name": "marengo2.7",
+                            "options": ["visual", "audio"]
                         },
                         {
-                            "name": "pegasus1.1",
-                            "options": ["visual", "conversation"]
+                            "name": "pegasus1.2",
+                            "options": ["visual", "audio"]
                         }
                     ]
                 )
