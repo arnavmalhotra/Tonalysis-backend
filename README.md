@@ -1,169 +1,220 @@
-# Tonalysis - Speech & Body Language Therapy Platform
+# Speech Therapy Practice App with Twelvelabs Integration
 
-A real-time speech therapy platform that analyzes your voice, body language, and presentation skills using AI-powered feedback.
+A real-time speech and presentation practice application that provides:
+- **Live speech analysis** using Google Gemini AI
+- **Real-time body language detection** using MediaPipe
+- **Deep video analysis** using Twelvelabs AI
+- **Comprehensive feedback** on presentation skills
 
 ## Features
 
-- 🎤 **Real-time Speech Analysis**: Live transcription with AI-powered feedback
-- 👤 **Body Language Detection**: Facial expression and posture analysis using MediaPipe
-- 🎯 **Interactive Practice Sessions**: Guided practice with countdown and feedback
-- 📊 **Performance Tracking**: Visual progress indicators and session summaries
-- 💡 **Smart Feedback**: Contextual tips for improvement
+### Real-Time Analysis
+- 🎤 **Speech Recognition**: Live transcription with immediate feedback
+- 👤 **Body Language Detection**: Emotion, posture, and energy level tracking
+- 📊 **Performance Metrics**: Real-time scoring and improvement suggestions
 
-## Prerequisites
-
-- Python 3.9 or higher
-- Google Gemini API key
-- Modern web browser (Chrome, Edge, or Safari recommended)
-- Webcam for body language analysis
+### Deep Video Analysis (Twelvelabs)
+- 🎬 **Video Recording**: Automatic session recording during practice
+- 🧠 **AI-Powered Insights**: Comprehensive analysis of presentation skills
+- 📝 **Detailed Feedback**: Specific recommendations for improvement
+- 🔍 **Content Search**: Find specific moments and patterns in your presentation
 
 ## Setup Instructions
 
-### 1. Clone the Repository
-```bash
-git clone <your-repo-url>
-cd Tonalysis-backend
-```
+### 1. Install Dependencies
 
-### 2. Set Up Python Environment
 ```bash
-# Activate virtual environment (if using venv)
-source venv/bin/activate  # On macOS/Linux
-# or
-venv\Scripts\activate     # On Windows
-
-# Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
+
+# Note: If you encounter permission issues, use:
+pip install --user -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
-Create a `.env` file in the project root:
+### 2. Configure API Keys
+
+Create a `.env` file in the project root with your API keys:
+
+```env
+# Google Gemini API key for speech analysis
+GOOGLE_API_KEY=your_google_api_key_here
+
+# Twelvelabs API key for video analysis
+TWELVELABS_API_KEY=your_twelvelabs_api_key_here
+```
+
+#### Getting API Keys:
+
+**Google Gemini API:**
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a new API key
+3. Copy the key to your `.env` file
+
+**Twelvelabs API:**
+1. Sign up at [Twelvelabs](https://twelvelabs.io)
+2. Navigate to your dashboard
+3. Generate an API key
+4. Copy the key to your `.env` file
+
+### 3. Run the Application
+
 ```bash
-# Create .env file
-touch .env
-```
-
-Add your Google Gemini API key to the `.env` file:
-```
-GOOGLE_API_KEY=your_gemini_api_key_here
-```
-
-### 4. Get Google Gemini API Key
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Sign in with your Google account
-3. Click "Create API Key"
-4. Copy the API key and paste it in your `.env` file
-
-## Running the Application
-
-### 1. Start the Backend Server
-```bash
-# Make sure your virtual environment is activated
+# Start the server
 python main.py
+
+# The app will be available at http://localhost:8000
 ```
 
-The server will start on `http://localhost:8000`
+## How It Works
 
-### 2. Open the Application
-1. Open your web browser
-2. Navigate to `http://localhost:8000`
-3. You should see the Tonalysis interface
+### Session Flow
+1. **Start Practice**: Click "Start Practice" to begin a session
+2. **Real-Time Feedback**: Get immediate feedback on speech and body language
+3. **Video Recording**: Your session is automatically recorded
+4. **Deep Analysis**: After ending the session, Twelvelabs analyzes the full video
+5. **Comprehensive Report**: Receive detailed insights and recommendations
 
-### 3. Start a Practice Session
-1. Click "Connect to Server" to establish WebSocket connection
-2. Click "Start Camera" to enable body language analysis
-3. Click "🎤 Start Practice" to begin your session
-4. Follow the countdown and start speaking!
+### Analysis Components
 
-## Usage Guide
+#### Real-Time Analysis (Every 10-30 seconds)
+- **Speech Analysis**: Clarity, pace, filler words, vocabulary variety
+- **Body Language**: Emotion detection, posture assessment, energy levels
+- **Performance Scoring**: Live feedback on your presentation skills
 
-### Practice Session Flow
-1. **Idle State**: Click "Start Practice" to begin
-2. **Countdown**: 3-2-1 countdown with preparation tips
-3. **Recording**: Real-time feedback appears as you speak
-4. **Paused**: Click "Stop" to pause and review
-5. **Summary**: View your performance scores and tips
+#### Deep Video Analysis (Post-session)
+- **Video Summary**: AI-generated overview of your presentation
+- **Presentation Analysis**: Detailed breakdown of speaking style and delivery
+- **Body Language Insights**: Comprehensive posture and gesture analysis
+- **Actionable Recommendations**: Specific improvement suggestions with timestamps
 
-### Feedback Types
-- **👍 Positive**: Great progress and improvements
-- **⚠️ Warning**: Areas for improvement
-- **⛔ Critical**: Important issues to address
-- **💡 Info**: General tips and guidance
+### Twelvelabs Features
 
-### Body Language Analysis
-- **Emotion Detection**: Happy, neutral, sad, surprised, etc.
-- **Posture Analysis**: Excellent, good, fair, poor
-- **Energy Levels**: Alert, moderate, tired, very tired
+The integration with Twelvelabs provides:
+
+1. **Video Understanding**: Advanced AI analysis of your entire presentation
+2. **Content Search**: Find specific moments (e.g., "nervous gestures", "confident delivery")
+3. **Pattern Recognition**: Identify recurring habits and behaviors
+4. **Contextual Insights**: Understand how different parts of your presentation perform
+5. **Improvement Tracking**: Compare sessions over time
+
+## Technology Stack
+
+- **Backend**: FastAPI, Python
+- **AI Services**: 
+  - Google Gemini (speech analysis)
+  - Twelvelabs (video analysis)
+  - MediaPipe (body language detection)
+- **Frontend**: Vanilla JavaScript, WebRTC, MediaRecorder API
+- **Real-time Communication**: WebSockets
+
+## File Structure
+
+```
+├── main.py                           # Main server with Twelvelabs integration
+├── body_language.js                  # MediaPipe body language analysis
+├── speech_recognition_client.html    # Frontend with video recording
+├── requirements.txt                  # Python dependencies
+├── .env                             # API keys configuration
+├── videos/                          # Recorded session videos
+└── models/                          # MediaPipe model files
+```
+
+## API Endpoints
+
+### Video Session Management
+- `POST /api/start-video-session/{client_id}` - Start recording session
+- `POST /api/upload-video/{client_id}` - Upload recorded video
+- `POST /api/end-video-session/{client_id}` - End session and start analysis
+- `GET /api/video-session/{client_id}` - Get session status and results
+
+### WebSocket Events
+- `video_session_started` - Notify server of recording start
+- `video_session_ended` - Notify server of recording end
+- `twelvelabs_analysis_complete` - Receive analysis results
 
 ## Troubleshooting
 
 ### Common Issues
 
-**1. "Speech recognition not supported"**
-- Use Chrome, Edge, or Safari
-- Ensure microphone permissions are granted
+1. **Twelvelabs SDK Installation Error**
+   ```bash
+   pip install twelvelabs-python==0.2.23
+   ```
 
-**2. "Failed to start camera"**
-- Check webcam permissions
-- Ensure no other app is using the camera
+2. **Video Recording Not Working**
+   - Ensure HTTPS or localhost (required for MediaRecorder)
+   - Check browser permissions for camera/microphone
+   - Verify WebRTC support
 
-**3. "Analysis temporarily unavailable"**
-- Check your Google API key in `.env`
-- Verify internet connection
-- Check API quota limits
+3. **API Key Issues**
+   - Verify keys are correctly set in `.env`
+   - Check API key permissions and quotas
+   - Ensure proper formatting (no quotes needed in .env)
 
-**4. "WebSocket connection failed"**
-- Ensure the backend server is running
-- Check if port 8000 is available
-- Try refreshing the page
+4. **Video Upload Fails**
+   - Check video file size (Twelvelabs has limits)
+   - Verify network connectivity
+   - Check server logs for detailed errors
 
-### API Key Issues
-If you get authentication errors:
-1. Verify your API key is correct
-2. Check if you have sufficient quota
-3. Ensure the key has access to Gemini models
+### Browser Compatibility
 
-## Development
+- **Chrome**: Fully supported
+- **Firefox**: Supported (may need different MediaRecorder options)
+- **Safari**: Supported with limitations
+- **Edge**: Fully supported
 
-### Project Structure
+## Advanced Configuration
+
+### Video Recording Settings
+
+Modify the video recording parameters in `speech_recognition_client.html`:
+
+```javascript
+const options = {
+    mimeType: 'video/webm;codecs=vp9,opus',
+    videoBitsPerSecond: 2500000, // Adjust for quality/size balance
+    audioBitsPerSecond: 128000
+};
 ```
-Tonalysis-backend/
-├── main.py                 # FastAPI backend server
-├── body_language.js        # Frontend body language analysis
-├── speech_recognition_client.html  # Main UI
-├── requirements.txt        # Python dependencies
-├── .env                    # Environment variables (create this)
-├── models/                 # ML model files
-└── venv/                   # Python virtual environment
-```
 
-### Adding New Features
-1. Backend: Modify `main.py` for new API endpoints
-2. Frontend: Update HTML/JS for UI changes
-3. Body Language: Modify `body_language.js` for new detection
+### Twelvelabs Analysis Engines
 
-## API Endpoints
+The app uses multiple analysis engines for comprehensive insights:
 
-- `GET /`: Main application interface
-- `GET /api`: Health check endpoint
-- `GET /body_language.js`: Body language analysis script
-- `WS /ws/text/{client_id}`: WebSocket for real-time communication
+- **Marengo 2.6**: Visual, conversation, text-in-video, logo detection
+- **Pegasus 1.1**: Visual and conversation analysis
 
-## Technologies Used
+Modify engines in `main.py` if needed.
 
-- **Backend**: FastAPI, Python, WebSockets
-- **Frontend**: HTML5, JavaScript, MediaPipe
-- **AI**: Google Gemini API
-- **Computer Vision**: MediaPipe Face Mesh
-- **Speech Recognition**: Web Speech API
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ## License
 
-This project is for educational and personal use.
+This project is for educational and practice purposes. Please ensure compliance with API terms of service.
 
 ## Support
 
-For issues or questions:
-1. Check the troubleshooting section
-2. Verify all prerequisites are met
-3. Ensure proper API key configuration 
+For issues related to:
+- **Twelvelabs API**: [Twelvelabs Documentation](https://docs.twelvelabs.io)
+- **Google Gemini**: [Gemini API Documentation](https://ai.google.dev/gemini-api)
+- **MediaPipe**: [MediaPipe Documentation](https://developers.google.com/mediapipe)
+
+---
+
+## Next Steps
+
+After setup, try these features:
+
+1. **Practice a short presentation** (2-3 minutes)
+2. **Review real-time feedback** during the session
+3. **Wait for Twelvelabs analysis** (may take 5-10 minutes)
+4. **Explore detailed insights** and recommendations
+5. **Practice again** and compare improvements
+
+The combination of real-time feedback and deep video analysis provides a comprehensive view of your presentation skills, helping you improve faster and more effectively. 

@@ -886,6 +886,13 @@
         let analysisProgressValue = 0;
         const clientId = Math.floor(Math.random() * 1000);
         
+        // Video recording variables
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let stream = null;
+        let isVideoRecording = false;
+        let currentVideoSession = null;
+        
         // DOM elements
         const status = document.getElementById('status');
         const statusText = document.getElementById('statusText');
@@ -921,6 +928,309 @@
         
         if (!SpeechRecognition) {
             alert('Your browser does not support speech recognition. Please use Chrome, Edge, or Safari.');
+        }
+
+        // Video Recording Functions
+        async function initializeVideoRecording() {
+            try {
+                // Get video stream (this is already done by the body language module)
+                const videoElement = document.getElementById('video');
+                stream = videoElement.srcObject;
+                
+                if (!stream) {
+                    console.error('No video stream available for recording');
+                    return false;
+                }
+
+                // Create MediaRecorder with video and audio
+                const options = {
+                    mimeType: 'video/webm;codecs=vp9,opus',
+                    videoBitsPerSecond: 2500000, // 2.5 Mbps for good quality
+                    audioBitsPerSecond: 128000   // 128 kbps for audio
+                };
+
+                try {
+                    mediaRecorder = new MediaRecorder(stream, options);
+                } catch (e) {
+                    // Fallback for older browsers
+                    console.warn('VP9 not supported, falling back to VP8');
+                    const fallbackOptions = {
+                        mimeType: 'video/webm;codecs=vp8,opus',
+                        videoBitsPerSecond: 2000000,
+                        audioBitsPerSecond: 128000
+                    };
+                    mediaRecorder = new MediaRecorder(stream, fallbackOptions);
+                }
+
+                recordedChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                        console.log('Video chunk recorded:', event.data.size, 'bytes');
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    console.log('Video recording stopped, processing...');
+                    await processRecordedVideo();
+                };
+
+                mediaRecorder.onerror = (event) => {
+                    console.error('MediaRecorder error:', event.error);
+                    showFeedback('Video recording error: ' + event.error, 'negative');
+                };
+
+                return true;
+            } catch (error) {
+                console.error('Failed to initialize video recording:', error);
+                showFeedback('Failed to initialize video recording', 'negative');
+                return false;
+            }
+        }
+
+        async function startVideoRecording() {
+            try {
+                // Start video session on server
+                const response = await fetch(`/api/start-video-session/${clientId}`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to start video session');
+                }
+                
+                currentVideoSession = await response.json();
+                console.log('Video session started:', currentVideoSession);
+
+                // Initialize recording if not already done
+                if (!mediaRecorder) {
+                    const recordingReady = await initializeVideoRecording();
+                    if (!recordingReady) {
+                        throw new Error('Failed to initialize video recording');
+                    }
+                }
+
+                // Start recording
+                recordedChunks = [];
+                mediaRecorder.start(1000); // Record in 1-second chunks
+                isVideoRecording = true;
+
+                console.log('Video recording started');
+                showFeedback('Video recording started', 'info', 3000);
+
+                // Notify server via WebSocket
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'video_session_started',
+                        session_id: currentVideoSession.session_id,
+                        client_id: clientId
+                    }));
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Failed to start video recording:', error);
+                showFeedback('Failed to start video recording: ' + error.message, 'negative');
+                return false;
+            }
+        }
+
+        async function stopVideoRecording() {
+            try {
+                if (!isVideoRecording || !mediaRecorder) {
+                    console.log('No video recording in progress');
+                    return;
+                }
+
+                console.log('Stopping video recording...');
+                mediaRecorder.stop();
+                isVideoRecording = false;
+
+                showFeedback('Processing video for Twelvelabs analysis...', 'info', 5000);
+
+                // Notify server via WebSocket
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'video_session_ended',
+                        session_id: currentVideoSession?.session_id,
+                        client_id: clientId
+                    }));
+                }
+
+            } catch (error) {
+                console.error('Error stopping video recording:', error);
+                showFeedback('Error stopping video recording', 'negative');
+            }
+        }
+
+        async function processRecordedVideo() {
+            try {
+                if (recordedChunks.length === 0) {
+                    console.error('No video chunks to process');
+                    return;
+                }
+
+                console.log('Processing', recordedChunks.length, 'video chunks');
+                
+                // Create blob from recorded chunks
+                const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+                console.log('Video blob created, size:', videoBlob.size, 'bytes');
+
+                // Create FormData for upload
+                const formData = new FormData();
+                formData.append('video', videoBlob, `session_${currentVideoSession?.session_id || 'unknown'}.webm`);
+
+                // Upload to server
+                const uploadResponse = await fetch(`/api/upload-video/${clientId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error('Failed to upload video');
+                }
+
+                const uploadResult = await uploadResponse.json();
+                console.log('Video uploaded successfully:', uploadResult);
+
+                // End video session and start Twelvelabs analysis
+                const endResponse = await fetch(`/api/end-video-session/${clientId}`, {
+                    method: 'POST'
+                });
+
+                if (!endResponse.ok) {
+                    throw new Error('Failed to end video session');
+                }
+
+                const endResult = await endResponse.json();
+                console.log('Video session ended, analysis starting:', endResult);
+
+                showFeedback('Video uploaded! Deep analysis starting...', 'positive', 4000);
+
+                // Start polling for analysis results
+                pollForTwelvelabsResults();
+
+            } catch (error) {
+                console.error('Error processing recorded video:', error);
+                showFeedback('Error processing video: ' + error.message, 'negative');
+            }
+        }
+
+        async function pollForTwelvelabsResults() {
+            let pollCount = 0;
+            const maxPolls = 60; // Poll for up to 10 minutes (60 * 10 seconds)
+
+            const poll = async () => {
+                try {
+                    pollCount++;
+                    
+                    const response = await fetch(`/api/video-session/${clientId}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to get session status');
+                    }
+
+                    const session = await response.json();
+                    console.log('Session status:', session.status);
+
+                    if (session.status === 'completed') {
+                        console.log('Twelvelabs analysis completed!');
+                        displayTwelvelabsResults(session.twelvelabs_analysis);
+                        return;
+                    } else if (session.status === 'error') {
+                        console.error('Twelvelabs analysis failed:', session.error);
+                        showFeedback('Video analysis failed: ' + session.error, 'negative');
+                        return;
+                    } else if (pollCount >= maxPolls) {
+                        console.warn('Polling timeout reached');
+                        showFeedback('Video analysis is taking longer than expected', 'warning');
+                        return;
+                    }
+
+                    // Update status feedback
+                    const statusMessages = {
+                        'uploading_to_twelvelabs': 'Uploading to Twelvelabs...',
+                        'processing_twelvelabs': 'Processing video...',
+                        'analyzing': 'Analyzing content...'
+                    };
+
+                    if (statusMessages[session.status]) {
+                        showFeedback(statusMessages[session.status], 'info', 3000);
+                    }
+
+                    // Continue polling
+                    setTimeout(poll, 10000); // Poll every 10 seconds
+
+                } catch (error) {
+                    console.error('Error polling for results:', error);
+                    if (pollCount < maxPolls) {
+                        setTimeout(poll, 10000); // Retry
+                    }
+                }
+            };
+
+            // Start polling
+            poll();
+        }
+
+        function displayTwelvelabsResults(analysis) {
+            console.log('Displaying Twelvelabs analysis:', analysis);
+            
+            if (!analysis) {
+                showFeedback('No analysis results available', 'warning');
+                return;
+            }
+
+            // Show completion feedback
+            showFeedback('🎉 Deep video analysis complete!', 'positive', 5000);
+
+            // Create detailed analysis panel
+            const detailedAnalysisHTML = `
+                <div style="margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.1); border-radius: 8px;">
+                    <h3 style="color: #10B981; margin: 0 0 12px 0; font-size: 16px;">🎬 Deep Video Analysis</h3>
+                    
+                    ${analysis.summary ? `
+                        <div style="margin-bottom: 12px;">
+                            <strong style="color: rgba(255, 255, 255, 0.9);">Summary:</strong>
+                            <p style="margin: 4px 0; font-size: 13px; line-height: 1.4; color: rgba(255, 255, 255, 0.8);">${analysis.summary}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${analysis.detailed_insights ? `
+                        <div style="margin-bottom: 12px;">
+                            <strong style="color: rgba(255, 255, 255, 0.9);">Detailed Insights:</strong>
+                            <p style="margin: 4px 0; font-size: 13px; line-height: 1.4; color: rgba(255, 255, 255, 0.8);">${analysis.detailed_insights}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${analysis.recommendations && analysis.recommendations.length > 0 ? `
+                        <div style="margin-bottom: 12px;">
+                            <strong style="color: rgba(255, 255, 255, 0.9);">Recommendations:</strong>
+                            <ul style="margin: 4px 0; padding-left: 16px; font-size: 13px; color: rgba(255, 255, 255, 0.8);">
+                                ${analysis.recommendations.map(rec => `
+                                    <li style="margin-bottom: 4px;">${rec.recommendation}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    
+                    <div style="font-size: 11px; color: rgba(255, 255, 255, 0.6); margin-top: 8px;">
+                        Powered by Twelvelabs AI Video Understanding
+                    </div>
+                </div>
+            `;
+
+            // Add to analysis content
+            analysisContent.innerHTML += detailedAnalysisHTML;
+
+            // Also show key insights as feedback cards
+            if (analysis.recommendations) {
+                analysis.recommendations.forEach((rec, index) => {
+                    setTimeout(() => {
+                        showFeedback(`${rec.category}: ${rec.recommendation}`, 'info', 8000);
+                    }, index * 2000); // Stagger the feedback
+                });
+            }
         }
 
         // Screen State Management
@@ -993,6 +1303,9 @@
                 }
             }
             
+            // Start video recording
+            await startVideoRecording();
+            
             // Start recording immediately
             startRecording();
             
@@ -1041,6 +1354,7 @@
             if (recognition && isRecording) {
                 recognition.stop();
             }
+            // Note: We don't pause video recording as it's better to have continuous video
         }
 
         function resumeSession() {
@@ -1052,11 +1366,14 @@
             startRecording();
         }
 
-        function endSession() {
+        async function endSession() {
             // Stop recording
             if (recognition && isRecording) {
                 recognition.stop();
             }
+            
+            // Stop video recording
+            await stopVideoRecording();
             
             // Clear timers
             if (window.sessionTimer) {
@@ -1112,6 +1429,10 @@
             isPaused = false;
             sessionDuration = 0;
             performanceScore = 0;
+            isVideoRecording = false;
+            currentVideoSession = null;
+            recordedChunks = [];
+            mediaRecorder = null;
         }
 
         // Feedback System
@@ -1174,10 +1495,6 @@
             return icons[type] || icons.info;
         }
 
-
-
-
-
         function connect() {
             return new Promise((resolve, reject) => {
             ws = new WebSocket(`ws://localhost:8000/ws/text/${clientId}`);
@@ -1217,6 +1534,16 @@
                 } else if (data.type === 'body_language_feedback') {
                         console.log('Body language feedback received:', data);
                     displayBodyLanguageFeedback(data);
+                } else if (data.type === 'video_session_acknowledged') {
+                    console.log('Video session acknowledged:', data);
+                    showFeedback('Video recording session started', 'positive', 3000);
+                } else if (data.type === 'twelvelabs_analysis_status') {
+                    console.log('Twelvelabs analysis status:', data);
+                    const statusMessage = `Analysis status: ${data.status}`;
+                    showFeedback(statusMessage, 'info', 4000);
+                } else if (data.type === 'twelvelabs_analysis_complete') {
+                    console.log('Twelvelabs analysis complete:', data);
+                    displayTwelvelabsResults(data.analysis);
                     } else {
                         console.log('Unknown message type:', data.type, data);
                     }
