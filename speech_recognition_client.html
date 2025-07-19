@@ -647,9 +647,11 @@
             background: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(20px);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             z-index: 20;
+            overflow-y: auto;
+            padding: 20px 0;
         }
         
         .summary-card {
@@ -885,6 +887,12 @@
         let analysisTimer = null;
         let analysisProgressValue = 0;
         const clientId = Math.floor(Math.random() * 1000);
+        let bodyLanguageInterval = null;
+        
+        // Video recording variables
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let sessionVideoBlob = null;
         
         // DOM elements
         const status = document.getElementById('status');
@@ -987,6 +995,19 @@
                             window.bodyLanguage.setWebSocket(ws);
                         }
                         isCameraActive = true;
+                        
+                        // Start body language interval
+                        if (bodyLanguageInterval) {
+                            clearInterval(bodyLanguageInterval);
+                        }
+                        bodyLanguageInterval = setInterval(() => {
+                            if (window.bodyLanguage && window.bodyLanguage.sendBodyLanguageData) {
+                                window.bodyLanguage.sendBodyLanguageData();
+                            }
+                        }, 2000);
+                        
+                        // Start video recording
+                        await startVideoRecording();
                     }
                 } catch (error) {
                     console.error('Camera error:', error.message);
@@ -1055,7 +1076,22 @@
         function endSession() {
             // Stop recording
             if (recognition && isRecording) {
+                isRecording = false;
                 recognition.stop();
+            }
+            
+            // Stop video recording
+            stopVideoRecording();
+            
+            // Stop body language analysis
+            if (bodyLanguageInterval) {
+                clearInterval(bodyLanguageInterval);
+                bodyLanguageInterval = null;
+            }
+            
+            // Stop body language module
+            if (window.bodyLanguage && window.bodyLanguage.stop) {
+                window.bodyLanguage.stop();
             }
             
             // Clear timers
@@ -1101,6 +1137,12 @@
                     videoElement.srcObject = null;
                 }
                 isCameraActive = false;
+            }
+            
+            // Clear body language interval
+            if (bodyLanguageInterval) {
+                clearInterval(bodyLanguageInterval);
+                bodyLanguageInterval = null;
             }
             
             // Clear feedback
@@ -1560,6 +1602,309 @@
             if (recognition && isRecording) {
                 recognition.stop();
             }
+        }
+
+        // Video Recording Functions
+        async function startVideoRecording() {
+            const videoElement = document.getElementById('video');
+            let stream = videoElement.srcObject;
+            
+            if (!stream) {
+                console.error('No video stream available');
+                return;
+            }
+            
+            // Get audio stream to combine with video
+            try {
+                const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const audioTracks = audioStream.getAudioTracks();
+                
+                // Create a new stream combining video and audio
+                const combinedStream = new MediaStream();
+                
+                // Add video tracks from existing stream
+                stream.getVideoTracks().forEach(track => {
+                    combinedStream.addTrack(track);
+                });
+                
+                // Add audio tracks
+                audioTracks.forEach(track => {
+                    combinedStream.addTrack(track);
+                });
+                
+                stream = combinedStream;
+                console.log('Combined video and audio streams for recording');
+            } catch (error) {
+                console.error('Error getting audio stream:', error);
+                console.log('Recording video only without audio');
+            }
+            
+            // Clear previous recording
+            recordedChunks = [];
+            
+            // Create MediaRecorder with video and audio
+            const options = {
+                mimeType: 'video/webm;codecs=vp9,opus'
+            };
+            
+            // Check if the browser supports the mimeType
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'video/webm';
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'video/mp4';
+                }
+            }
+            
+            try {
+                mediaRecorder = new MediaRecorder(stream, options);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    console.log('Video recording stopped, creating blob...');
+                    sessionVideoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+                    console.log('Video blob created, size:', sessionVideoBlob.size);
+                    
+                    // Display video preview instead of auto-sending
+                    displayVideoPreview();
+                };
+                
+                mediaRecorder.start(1000); // Collect data every second
+                console.log('Video recording started');
+            } catch (error) {
+                console.error('MediaRecorder error:', error);
+            }
+        }
+        
+        function stopVideoRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                console.log('Stopping video recording...');
+                
+                // Stop all tracks in the media recorder stream
+                if (mediaRecorder.stream) {
+                    mediaRecorder.stream.getTracks().forEach(track => {
+                        if (track.label.includes('Audio') || track.kind === 'audio') {
+                            track.stop();
+                            console.log('Stopped audio track:', track.label);
+                        }
+                    });
+                }
+            }
+        }
+        
+        function displayVideoPreview() {
+            const summaryCard = document.querySelector('.summary-card');
+            
+            // Create video preview section
+            const videoSection = document.createElement('div');
+            videoSection.style.marginTop = '32px';
+            videoSection.style.padding = '24px';
+            videoSection.style.background = 'rgba(0, 0, 0, 0.05)';
+            videoSection.style.borderRadius = '12px';
+            
+            // Create video element
+            const videoPreview = document.createElement('video');
+            videoPreview.style.width = '100%';
+            videoPreview.style.maxHeight = '300px';
+            videoPreview.style.borderRadius = '8px';
+            videoPreview.style.marginBottom = '16px';
+            videoPreview.controls = true;
+            videoPreview.src = URL.createObjectURL(sessionVideoBlob);
+            
+            // Create download button
+            const downloadBtn = document.createElement('a');
+            downloadBtn.className = 'btn btn-secondary';
+            downloadBtn.style.marginRight = '12px';
+            downloadBtn.href = URL.createObjectURL(sessionVideoBlob);
+            downloadBtn.download = `session_${clientId}_${Date.now()}.webm`;
+            downloadBtn.innerHTML = '📥 Download Video';
+            
+            // Create analyze button
+            const analyzeBtn = document.createElement('button');
+            analyzeBtn.className = 'btn btn-primary';
+            analyzeBtn.innerHTML = '🔍 Send for Detailed Analysis';
+            
+            // Check minimum duration (4 seconds required by TwelveLabs)
+            if (sessionDuration < 4) {
+                analyzeBtn.disabled = true;
+                analyzeBtn.innerHTML = '❌ Session Too Short (Min: 4s)';
+                analyzeBtn.title = 'TwelveLabs requires videos to be at least 4 seconds long';
+            } else {
+                analyzeBtn.onclick = async () => {
+                    analyzeBtn.disabled = true;
+                    analyzeBtn.innerHTML = '⏳ Analyzing...';
+                    await sendVideoForAnalysis();
+                    analyzeBtn.style.display = 'none';
+                };
+            }
+            
+            videoSection.innerHTML = `
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 16px; color: #1F2937;">
+                    📹 Your Practice Session Recording
+                </h3>
+            `;
+            
+            videoSection.appendChild(videoPreview);
+            
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.display = 'flex';
+            buttonContainer.style.gap = '12px';
+            buttonContainer.style.justifyContent = 'center';
+            buttonContainer.appendChild(downloadBtn);
+            buttonContainer.appendChild(analyzeBtn);
+            
+            videoSection.appendChild(buttonContainer);
+            
+            // Insert after the score rings
+            const scoreRings = document.querySelector('.score-rings');
+            scoreRings.parentNode.insertBefore(videoSection, scoreRings.nextSibling);
+        }
+        
+        async function sendVideoForAnalysis() {
+            if (!sessionVideoBlob) {
+                console.error('No video blob available');
+                return;
+            }
+            
+            // Show loading state in summary
+            const summaryTitle = document.querySelector('.summary-title');
+            summaryTitle.innerHTML = '⏳ Analyzing your session with TwelveLabs...';
+            
+            try {
+                // Create FormData with video
+                const formData = new FormData();
+                formData.append('video', sessionVideoBlob, `session_${clientId}_${Date.now()}.webm`);
+                formData.append('client_id', clientId);
+                formData.append('duration', sessionDuration);
+                
+                // Send to backend
+                const response = await fetch('/api/analyze-video', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('Response status:', response.status);
+                const result = await response.json();
+                console.log('TwelveLabs analysis result:', result);
+                
+                if (!response.ok) {
+                    console.error('Response error:', result);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Display the analysis results
+                displayTwelveLabsAnalysis(result);
+                
+            } catch (error) {
+                console.error('Error sending video for analysis:', error);
+                summaryTitle.innerHTML = '🎉 Session Complete!';
+                // Add error message
+                const summaryCard = document.querySelector('.summary-card');
+                const errorMsg = document.createElement('div');
+                errorMsg.style.color = '#EF4444';
+                errorMsg.style.fontSize = '14px';
+                errorMsg.style.marginTop = '16px';
+                errorMsg.textContent = 'Video analysis unavailable at this time.';
+                summaryCard.insertBefore(errorMsg, summaryCard.children[1]);
+            }
+        }
+        
+        function displayTwelveLabsAnalysis(analysis) {
+            const summaryCard = document.querySelector('.summary-card');
+            
+            // Update title
+            const summaryTitle = document.querySelector('.summary-title');
+            summaryTitle.innerHTML = '🎉 Great Practice Session!';
+            
+            // Check if there's an error in the analysis
+            if (analysis.error) {
+                console.error('TwelveLabs error:', analysis.error);
+                // Still show what we can
+            }
+            
+            // Create analysis section
+            const analysisSection = document.createElement('div');
+            analysisSection.style.marginTop = '32px';
+            analysisSection.style.padding = '24px';
+            analysisSection.style.background = 'rgba(59, 130, 246, 0.1)';
+            analysisSection.style.borderRadius = '12px';
+            analysisSection.style.textAlign = 'left';
+            
+            analysisSection.innerHTML = `
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 16px; color: #1F2937;">
+                    📹 Video Analysis Report
+                </h3>
+                <div style="font-size: 14px; line-height: 1.6; color: #374151;">
+                    ${formatTwelveLabsAnalysis(analysis)}
+                </div>
+            `;
+            
+            // Insert after the score rings
+            const scoreRings = document.querySelector('.score-rings');
+            scoreRings.parentNode.insertBefore(analysisSection, scoreRings.nextSibling);
+        }
+        
+        function formatTwelveLabsAnalysis(analysis) {
+            let html = '';
+            
+            // Show detailed analysis if available
+            if (analysis.detailed_analysis) {
+                html += `<div style="margin-bottom: 20px; padding: 16px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                    <strong style="font-size: 16px; display: block; margin-bottom: 12px;">🔍 Comprehensive Therapy Analysis</strong>
+                    <div style="white-space: pre-line; line-height: 1.6;">
+                        ${analysis.detailed_analysis}
+                    </div>
+                </div>`;
+            } else if (analysis.summary) {
+                html += `<div style="margin-bottom: 16px;">
+                    <strong>Session Summary:</strong><br>
+                    ${analysis.summary}
+                </div>`;
+            }
+            
+            if (analysis.key_moments && analysis.key_moments.length > 0) {
+                html += `<div style="margin-bottom: 16px;">
+                    <strong>Key Moments:</strong><br>
+                    <ul style="margin: 8px 0; padding-left: 20px;">`;
+                analysis.key_moments.forEach(moment => {
+                    html += `<li>${moment}</li>`;
+                });
+                html += `</ul></div>`;
+            }
+            
+            if (analysis.recommendations && analysis.recommendations.length > 0 && !analysis.detailed_analysis) {
+                html += `<div style="margin-bottom: 16px;">
+                    <strong>Recommendations:</strong><br>
+                    <ul style="margin: 8px 0; padding-left: 20px;">`;
+                analysis.recommendations.forEach(rec => {
+                    html += `<li>${rec}</li>`;
+                });
+                html += `</ul></div>`;
+            }
+            
+            if (analysis.topics && analysis.topics.length > 0) {
+                html += `<div style="margin-bottom: 16px;">
+                    <strong>Topics Covered:</strong> ${analysis.topics.join(', ')}
+                </div>`;
+            }
+            
+            if (analysis.note) {
+                html += `<div style="margin-top: 16px; padding: 12px; background: rgba(251, 191, 36, 0.1); border-radius: 8px; font-size: 13px;">
+                    <strong>Note:</strong> ${analysis.note}
+                </div>`;
+            }
+            
+            // Show session duration
+            html += `<div style="margin-top: 16px; font-size: 13px; color: #6B7280;">
+                Session Duration: ${Math.floor(sessionDuration / 60)}:${(sessionDuration % 60).toString().padStart(2, '0')}
+            </div>`;
+            
+            return html || 'Analysis complete. Your session has been processed successfully.';
         }
     </script>
 </body>

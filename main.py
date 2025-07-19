@@ -1,7 +1,7 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from typing import List, Dict
 import json
 import asyncio
@@ -10,6 +10,11 @@ from datetime import datetime
 from google import genai
 import time
 from dotenv import load_dotenv
+import os
+import tempfile
+import subprocess
+from twelvelabs import TwelveLabs
+from twelvelabs.models.task import Task
 
 # Load environment variables
 load_dotenv()
@@ -34,6 +39,38 @@ async def serve_body_language_js():
 
 # Initialize Gemini client
 client = genai.Client()
+
+# Initialize TwelveLabs client
+tl_client = TwelveLabs(api_key=os.getenv('TWELVELABS_API_KEY'))
+
+# Get or create index for video analysis
+def get_or_create_index():
+    """Get existing index or create a new one"""
+    try:
+        # Try to list existing indexes
+        indexes = tl_client.index.list()
+        
+        # Look for an existing index with our name
+        for index in indexes:
+            if index.name == "speech-therapy-sessions":
+                print(f"Using existing index: {index.id}")
+                return index.id
+        
+        # If not found, create a new index
+        print("Creating new index for speech therapy sessions...")
+        new_index = tl_client.index.create(
+            name="speech-therapy-sessions",
+            models=[{"name": "pegasus1.2", "options": ["visual", "audio"]}]
+        )
+        print(f"Created new index: {new_index.id}")
+        return new_index.id
+        
+    except Exception as e:
+        print(f"Error managing index: {e}")
+        # Fallback to a hardcoded index if needed
+        return None
+
+INDEX_ID = get_or_create_index()
 
 # Thread pool for async operations
 executor = ThreadPoolExecutor(max_workers=4)
@@ -320,6 +357,190 @@ async def text_websocket_endpoint(websocket: WebSocket, client_id: str):
     except Exception as e:
         print(f"\nError in text websocket: {e}")
         await websocket.close()
+
+
+@app.post("/api/analyze-video")
+async def analyze_video(
+    video: UploadFile = File(...),
+    client_id: str = Form(...),
+    duration: int = Form(...)
+):
+    """Analyze video with TwelveLabs for comprehensive therapy insights"""
+    print(f"[Client #{client_id}] Received video for analysis, duration: {duration}s")
+    
+    try:
+        # Check minimum duration
+        if duration < 4:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Video too short. Minimum 4 seconds required."}
+            )
+        
+        # Save uploaded video temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp_webm:
+            content = await video.read()
+            tmp_webm.write(content)
+            tmp_webm_path = tmp_webm.name
+            print(f"Saved WebM to: {tmp_webm_path}, size: {len(content)} bytes")
+        
+        # Convert WebM to MP4 using FFmpeg
+        tmp_mp4_path = tmp_webm_path.replace('.webm', '.mp4')
+        print(f"Converting WebM to MP4: {tmp_mp4_path}")
+        
+        try:
+            result = subprocess.run([
+                'ffmpeg', '-i', tmp_webm_path,
+                '-c:v', 'libx264',
+                '-c:a', 'aac',
+                '-movflags', '+faststart',
+                '-y',  # Overwrite output file
+                tmp_mp4_path
+            ], capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print(f"FFmpeg error: {result.stderr}")
+                raise Exception(f"FFmpeg conversion failed: {result.stderr}")
+            
+            print(f"Successfully converted to MP4")
+            
+            # Use MP4 file for TwelveLabs
+            video_path = tmp_mp4_path
+        except Exception as e:
+            print(f"FFmpeg conversion failed, using original WebM: {e}")
+            video_path = tmp_webm_path
+        
+        # Analyze with TwelveLabs
+        analysis_result = await analyze_video_with_twelvelabs(video_path, client_id)
+        
+        # Clean up temporary files
+        try:
+            os.unlink(tmp_webm_path)
+            if os.path.exists(tmp_mp4_path):
+                os.unlink(tmp_mp4_path)
+        except:
+            pass
+        
+        return JSONResponse(content=analysis_result)
+        
+    except Exception as e:
+        print(f"Error analyzing video: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+
+async def analyze_video_with_twelvelabs(video_path: str, client_id: str) -> dict:
+    """Use TwelveLabs to analyze the practice session video"""
+    try:
+        print(f"[Client #{client_id}] Starting TwelveLabs analysis...")
+        
+        # Check if we have a valid index
+        if not INDEX_ID:
+            raise Exception("No valid TwelveLabs index available. Please check your API key and try again.")
+        
+        # Upload video to TwelveLabs
+        print(f"Uploading video to TwelveLabs index: {INDEX_ID}")
+        
+        # Create a task for video upload
+        task = tl_client.task.create(
+            index_id=INDEX_ID,
+            file=video_path
+        )
+        
+        print(f"Task created: {task.id}")
+        
+        # Wait for the task to complete
+        def on_task_update(task: Task):
+            print(f"Task status: {task.status}")
+        
+        task.wait_for_done(callback=on_task_update)
+        
+        if task.status != "ready":
+            raise Exception(f"Task failed with status: {task.status}")
+        
+        video_id = task.video_id
+        print(f"Video uploaded successfully: {video_id}")
+        
+        # Perform comprehensive analysis using open-ended generate
+        print("Generating comprehensive therapy analysis...")
+        
+        prompt = """You are an expert speech and body language therapist analyzing a practice session video. 
+        Please provide a comprehensive analysis covering:
+        
+        1. **Speech Analysis**:
+           - Clarity and articulation
+           - Pace and rhythm
+           - Volume and projection
+           - Use of pauses and emphasis
+           - Filler words and verbal habits
+        
+        2. **Body Language Analysis**:
+           - Posture and stance
+           - Facial expressions
+           - Eye contact with camera
+           - Hand gestures and movement
+           - Overall confidence and presence
+        
+        3. **Overall Performance**:
+           - Energy levels throughout
+           - Engagement and enthusiasm
+           - Areas of strength
+           - Specific areas for improvement
+        
+        4. **Actionable Recommendations**:
+           - Top 3-5 specific things to work on
+           - Exercises or techniques to practice
+           - What to focus on in the next session
+        
+        Please be encouraging but specific, providing timestamps when noting particular moments.
+        Format your response in clear sections with practical advice."""
+        
+        # Use analyze endpoint for open-ended analysis
+        text_stream = tl_client.analyze_stream(
+            video_id=video_id,
+            prompt=prompt
+        )
+        
+        # Collect the streamed text
+        detailed_analysis = ""
+        for text in text_stream:
+            detailed_analysis += text
+        
+        print(f"Generated detailed analysis: {len(detailed_analysis)} characters")
+        
+        # Also get video gist for additional context
+        gist_result = tl_client.gist(
+            video_id=video_id,
+            types=["title", "topic", "hashtag"]
+        )
+        
+        # Format the analysis result
+        analysis = {
+            "video_id": video_id,
+            "detailed_analysis": detailed_analysis,
+            "topics": list(gist_result.topics) if gist_result.topics else [],
+            "hashtags": list(gist_result.hashtags) if gist_result.hashtags else [],
+            "title": gist_result.title if hasattr(gist_result, 'title') else "Practice Session",
+            "status": "complete"
+        }
+        
+        print(f"[Client #{client_id}] TwelveLabs analysis complete")
+        return analysis
+        
+    except Exception as e:
+        print(f"TwelveLabs analysis error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Return a graceful error response
+        return {
+            "error": str(e),
+            "status": "failed",
+            "note": "Video analysis encountered an error. Please try again."
+        }
 
 
 if __name__ == "__main__":
