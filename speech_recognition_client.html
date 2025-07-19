@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Speech Recognition Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; }
+        .status { margin-bottom: 10px; font-weight: bold; }
+        .transcription { color: green; }
+        .partial { color: #666; font-style: italic; }
+        .system { color: gray; font-style: italic; }
+        .error { color: red; }
+        .sent { color: blue; }
+        #recordButton { background-color: #4CAF50; color: white; }
+        #recordButton.recording { background-color: #f44336; }
+        #currentTranscription { 
+            padding: 15px; 
+            background: #f0f0f0; 
+            margin: 10px 0; 
+            min-height: 60px; 
+            border-radius: 5px;
+            font-size: 18px;
+        }
+        .highlight { background-color: yellow; }
+        #analysisSection {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            border: 1px solid #4caf50;
+        }
+        #analysisSection h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .analysis-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .analysis-time {
+            font-size: 12px;
+            color: #666;
+        }
+        #timer {
+            font-weight: bold;
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Live Speech Recognition (Frontend)</h1>
+    <div class="status" id="status">Disconnected</div>
+    <div id="currentTranscription">
+        <strong>Live transcription:</strong> <span id="timer"></span>
+        <div id="transcriptionText">Click "Start Recording" and speak...</div>
+    </div>
+    <div id="analysisSection">
+        <h3>Speech Therapist Analysis</h3>
+        <div id="analysisContent">Analysis will appear every 10 seconds while speaking...</div>
+    </div>
+    <div id="messages"></div>
+    <button id="connectButton">Connect to Server</button>
+    <button id="recordButton">Start Recording</button>
+
+    <script>
+        let ws = null;
+        let recognition = null;
+        let isRecording = false;
+        let analysisTimer = null;
+        let secondsElapsed = 0;
+        const clientId = Math.floor(Math.random() * 1000);
+        const messages = document.getElementById('messages');
+        const connectButton = document.getElementById('connectButton');
+        const recordButton = document.getElementById('recordButton');
+        const status = document.getElementById('status');
+        const transcriptionText = document.getElementById('transcriptionText');
+        const analysisContent = document.getElementById('analysisContent');
+        const timer = document.getElementById('timer');
+
+        // Check if browser supports speech recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+            alert('Your browser does not support speech recognition. Please use Chrome, Edge, or Safari.');
+            recordButton.disabled = true;
+        }
+
+        function addMessage(message, className) {
+            const div = document.createElement('div');
+            div.className = className;
+            div.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        async function connect() {
+            ws = new WebSocket(`ws://localhost:8000/ws/text/${clientId}`);
+
+            ws.onopen = () => {
+                status.textContent = `Connected as Client #${clientId}`;
+                status.style.color = 'green';
+                connectButton.textContent = 'Disconnect';
+                addMessage('Connected to server', 'system');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'response') {
+                    // Don't show character count messages
+                } else if (data.type === 'analysis') {
+                    displayAnalysis(data);
+                }
+            };
+
+            ws.onerror = (error) => {
+                addMessage(`Error: ${error}`, 'error');
+            };
+
+            ws.onclose = () => {
+                status.textContent = 'Disconnected';
+                status.style.color = 'red';
+                connectButton.textContent = 'Connect to Server';
+                addMessage('Disconnected from server', 'system');
+                ws = null;
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        function displayAnalysis(data) {
+            const analysisDiv = document.createElement('div');
+            analysisDiv.className = 'analysis-item';
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.style.display = 'flex';
+            headerDiv.style.justifyContent = 'space-between';
+            headerDiv.style.marginBottom = '8px';
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'analysis-time';
+            timeDiv.textContent = new Date(data.timestamp).toLocaleTimeString();
+            
+            const numberDiv = document.createElement('div');
+            numberDiv.style.color = '#1976d2';
+            numberDiv.style.fontWeight = 'bold';
+            numberDiv.textContent = `Analysis #${data.analysis_number || 1}`;
+            
+            headerDiv.appendChild(timeDiv);
+            headerDiv.appendChild(numberDiv);
+            
+            const textDiv = document.createElement('div');
+            textDiv.innerHTML = `<strong>Feedback:</strong> ${data.text}`;
+            
+            const transcriptDiv = document.createElement('div');
+            transcriptDiv.style.fontSize = '12px';
+            transcriptDiv.style.color = '#666';
+            transcriptDiv.style.marginTop = '5px';
+            const wordCount = data.transcript_analyzed.split(' ').length;
+            transcriptDiv.innerHTML = `<em>Based on ${wordCount} words: "${data.transcript_analyzed.substring(0, 50)}..."</em>`;
+            
+            analysisDiv.appendChild(headerDiv);
+            analysisDiv.appendChild(textDiv);
+            analysisDiv.appendChild(transcriptDiv);
+            
+            // Keep history of analyses
+            if (!analysisContent.querySelector('.analysis-item')) {
+                analysisContent.innerHTML = '';
+            }
+            
+            // Insert new analysis at the top
+            analysisContent.insertBefore(analysisDiv, analysisContent.firstChild);
+            
+            // Keep only last 3 analyses
+            const analyses = analysisContent.querySelectorAll('.analysis-item');
+            if (analyses.length > 3) {
+                analyses[analyses.length - 1].remove();
+            }
+            
+            addMessage(`Received analysis #${data.analysis_number || 1} from speech therapist`, 'system');
+        }
+
+        function updateTimer() {
+            const nextAnalysis = 10 - (secondsElapsed % 10);
+            timer.textContent = `(Next analysis in ${nextAnalysis}s)`;
+        }
+
+        function startRecording() {
+            if (!SpeechRecognition) return;
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            let finalTranscript = '';
+            let lastSentIndex = 0;
+
+            recognition.onstart = () => {
+                isRecording = true;
+                recordButton.textContent = 'Stop Recording';
+                recordButton.classList.add('recording');
+                transcriptionText.textContent = 'Listening...';
+                addMessage('Speech recognition started', 'system');
+                
+                // Start timer
+                secondsElapsed = 0;
+                analysisTimer = setInterval(() => {
+                    secondsElapsed++;
+                    updateTimer();
+                }, 1000);
+                updateTimer();
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let currentTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                        currentTranscript = finalTranscript;
+                    } else {
+                        interimTranscript += transcript;
+                        currentTranscript = finalTranscript + interimTranscript;
+                    }
+                }
+                
+                // Stream ALL text (final + interim) to backend continuously
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'streaming_transcription',
+                        text: currentTranscript.trim(),
+                        is_final: interimTranscript === '',
+                        client_id: clientId,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+                
+                // Update the display with both final and interim results
+                transcriptionText.innerHTML = 
+                    finalTranscript + 
+                    '<span class="highlight">' + interimTranscript + '</span>';
+            };
+
+            recognition.onerror = (event) => {
+                addMessage(`Recognition error: ${event.error}`, 'error');
+                if (event.error === 'no-speech') {
+                    transcriptionText.textContent = 'No speech detected. Please try again.';
+                }
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                recordButton.textContent = 'Start Recording';
+                recordButton.classList.remove('recording');
+                addMessage('Speech recognition stopped', 'system');
+                
+                // Stop timer
+                if (analysisTimer) {
+                    clearInterval(analysisTimer);
+                    analysisTimer = null;
+                }
+                timer.textContent = '';
+                
+                // Send any remaining text
+                const remainingText = finalTranscript.substring(lastSentIndex);
+                if (remainingText.trim() && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'final_transcription',
+                        text: remainingText.trim(),
+                        client_id: clientId,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            };
+
+            recognition.start();
+        }
+
+        function stopRecording() {
+            if (recognition && isRecording) {
+                recognition.stop();
+            }
+        }
+
+        connectButton.onclick = () => {
+            if (ws) {
+                disconnect();
+            } else {
+                connect();
+            }
+        };
+
+        recordButton.onclick = () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        };
+    </script>
+</body>
+</html>
