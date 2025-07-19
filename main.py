@@ -177,16 +177,16 @@ async def process_video_with_twelvelabs(client_id: str, session: Dict):
                     break
             
             if not index:
-                # Create new index with comprehensive analysis engines
+                # Create new index with comprehensive analysis models
                 index = twelvelabs_client.index.create(
                     name=index_name,
-                    engines=[
+                    models=[
                         {
-                            "name": "marengo2.6",
+                            "name": "marengo2.7",
                             "options": ["visual", "conversation", "text_in_video", "logo"]
                         },
                         {
-                            "name": "pegasus1.1",
+                            "name": "pegasus1.2",
                             "options": ["visual", "conversation"]
                         }
                     ]
