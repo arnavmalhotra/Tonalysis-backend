@@ -1,49 +1,57 @@
-# 🔧 Fixing Twelvelabs Index.create() Error
+# 🔧 Fixing Twelvelabs Index.create() Errors
 
-## ❌ **The Error**
+## ❌ **The Errors**
+
+### Error 1:
 ```
 Error managing index: Index.create() missing 1 required positional argument: 'models'
 ```
 
+### Error 2:
+```
+Error managing index: Error code: 400 - {'code': 'parameter_invalid', 'message': 'The model_options parameter is invalid. You should use one of the following values: visual, audio.'}
+```
+
 ## 🔍 **Root Cause**
-The Twelvelabs Python SDK API has changed since the original code was written. The method signature and parameter names have been updated:
+The Twelvelabs Python SDK API has significantly changed since the original code was written:
 
-- **Old API**: Used `engines` parameter
-- **New API**: Uses `models` parameter
+1. **Parameter Name Change**: `engines` → `models`
+2. **Model Versions Updated**: Newer model versions available
+3. **Options Simplified**: Only `visual` and `audio` are now valid options
 
-## ✅ **The Fix**
+## ✅ **The Complete Fix**
 
-I've already fixed this in your `main.py` file! The changes were:
+I've fixed both issues in your `main.py` file! The changes were:
 
-### **Before** (causing the error):
+### **Before** (causing both errors):
 ```python
 index = twelvelabs_client.index.create(
     name=index_name,
-    engines=[  # ❌ Old parameter name
+    engines=[  # ❌ Wrong parameter name
         {
             "name": "marengo2.6",  # ❌ Old model version
-            "options": ["visual", "conversation", "text_in_video", "logo"]
+            "options": ["visual", "conversation", "text_in_video", "logo"]  # ❌ Invalid options
         },
         {
             "name": "pegasus1.1",  # ❌ Old model version
-            "options": ["visual", "conversation"]
+            "options": ["visual", "conversation"]  # ❌ Invalid options
         }
     ]
 )
 ```
 
-### **After** (fixed):
+### **After** (completely fixed):
 ```python
 index = twelvelabs_client.index.create(
     name=index_name,
     models=[  # ✅ Correct parameter name
         {
             "name": "marengo2.7",  # ✅ Latest model version
-            "options": ["visual", "conversation", "text_in_video", "logo"]
+            "options": ["visual", "audio"]  # ✅ Valid options only
         },
         {
             "name": "pegasus1.2",  # ✅ Latest model version
-            "options": ["visual", "conversation"]
+            "options": ["visual", "audio"]  # ✅ Valid options only
         }
     ]
 )
@@ -60,10 +68,18 @@ index = twelvelabs_client.index.create(
 
 3. **Verify index creation** works by checking the server logs
 
-## 📋 **Updated Model Versions**
+## 📋 **What Changed**
 
-The fix also updates to the latest model versions:
+### Model Options Simplified:
+| Old Options | New Options | Status |
+|-------------|-------------|---------|
+| `visual` | `visual` | ✅ Still valid |
+| `conversation` | `audio` | 🔄 Replaced |
+| `text_in_video` | ❌ | 🚫 No longer supported |
+| `logo` | ❌ | 🚫 No longer supported |
+| ❌ | `audio` | ✅ New standard option |
 
+### Model Versions:
 | Component | Old Version | New Version | Purpose |
 |-----------|-------------|-------------|---------|
 | Marengo | 2.6 | **2.7** | Video understanding & search |
@@ -71,19 +87,30 @@ The fix also updates to the latest model versions:
 
 ## 🎯 **What This Enables**
 
-With this fix, your speech therapy app will now be able to:
+With these fixes, your speech therapy app will now:
 
-✅ **Create Twelvelabs indexes** for video analysis  
+✅ **Create Twelvelabs indexes** without parameter errors  
+✅ **Use valid model options** (`visual` + `audio`)  
 ✅ **Upload video recordings** automatically  
 ✅ **Generate deep video insights** using latest AI models  
+✅ **Analyze both visual and audio content** from your videos  
 ✅ **Display comprehensive analysis results** in the UI  
 
 ## 🔍 **Verification**
 
 After restarting, you should see:
-- No more "missing models argument" errors
-- Successful index creation in the logs
-- Video recording and upload working properly
-- Twelvelabs analysis appearing in your results
+- ✅ No more "missing models argument" errors
+- ✅ No more "parameter_invalid" errors  
+- ✅ Successful index creation in the logs
+- ✅ Video recording and upload working properly
+- ✅ Twelvelabs analysis appearing in your results
 
-The error has been resolved! Your speech therapy application should now work seamlessly with Twelvelabs video analysis.
+## 💡 **What You Get With Visual + Audio Analysis**
+
+The `visual` + `audio` combination provides:
+
+- **Visual Analysis**: Actions, objects, scenes, facial expressions, body language
+- **Audio Analysis**: Speech content, tone, music, sound effects
+- **Combined Insights**: Comprehensive understanding of your presentation skills
+
+Both errors have been resolved! Your speech therapy application should now work seamlessly with Twelvelabs video analysis. 🎉

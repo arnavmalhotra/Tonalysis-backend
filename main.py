@@ -183,11 +183,11 @@ async def process_video_with_twelvelabs(client_id: str, session: Dict):
                     models=[
                         {
                             "name": "marengo2.7",
-                            "options": ["visual", "conversation", "text_in_video", "logo"]
+                            "options": ["visual", "audio"]
                         },
                         {
                             "name": "pegasus1.2",
-                            "options": ["visual", "conversation"]
+                            "options": ["visual", "audio"]
                         }
                     ]
                 )
