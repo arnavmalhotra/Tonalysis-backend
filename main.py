@@ -194,7 +194,11 @@ async def text_websocket_endpoint(websocket: WebSocket, client_id: str):
             message = await websocket.receive_text()
             data = json.loads(message)
             
-            if data.get("type") == "body_language":
+            if data.get("type") == "heartbeat":
+                # Handle heartbeat - just acknowledge to keep connection alive
+                print(f"[Client #{client_id}] Heartbeat received")
+                continue
+            elif data.get("type") == "body_language":
                 # Handle body language data
                 emotion = data.get("emotion", "neutral")
                 posture = data.get("posture", {})
@@ -273,19 +277,26 @@ async def text_websocket_endpoint(websocket: WebSocket, client_id: str):
                         speech_metrics[client_id]["analyses_count"] += 1
                         
                         # Send analysis to frontend
-                        await websocket.send_json({
+                        analysis_message = {
                             "type": "analysis",
                             "text": analysis,
                             "transcript_analyzed": recent_transcript,
                             "timestamp": datetime.now().isoformat(),
                             "analysis_number": speech_metrics[client_id]["analyses_count"]
-                        })
+                        }
                         
-                        print(f"[Client #{client_id}] Analysis #{speech_metrics[client_id]['analyses_count']} sent: {analysis[:100]}...")
+                        print(f"[Client #{client_id}] Sending analysis message: {analysis_message}")
+                        await websocket.send_json(analysis_message)
+                        print(f"[Client #{client_id}] Analysis #{speech_metrics[client_id]['analyses_count']} sent successfully!")
                     
                     # Reset for next analysis
                     transcript_buffers[client_id] = []
                     last_analysis_time[client_id] = current_time
+                else:
+                    # Debug: show time remaining until next analysis
+                    time_remaining = 10 - (current_time - last_analysis_time[client_id])
+                    if time_remaining > 0 and time_remaining < 1:
+                        print(f"[Client #{client_id}] Next analysis in {time_remaining:.1f}s")
                 
     except WebSocketDisconnect:
         print(f"\nText streaming client #{client_id} disconnected")

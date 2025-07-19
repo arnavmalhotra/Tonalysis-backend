@@ -3,158 +3,862 @@
 <head>
     <title>Live Speech Recognition Client</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .main-container { display: flex; gap: 20px; }
-        .left-panel { flex: 1; }
-        .right-panel { flex: 1; }
-        
-        #messages { border: 1px solid #ccc; height: 200px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
-        button { padding: 10px 20px; margin: 5px; font-size: 16px; }
-        .status { margin-bottom: 10px; font-weight: bold; }
-        .transcription { color: green; }
-        .partial { color: #666; font-style: italic; }
-        .system { color: gray; font-style: italic; }
-        .error { color: red; }
-        .sent { color: blue; }
-        #recordButton { background-color: #4CAF50; color: white; }
-        #recordButton.recording { background-color: #f44336; }
-        #currentTranscription { 
-            padding: 15px; 
-            background: #f0f0f0; 
-            margin: 10px 0; 
-            min-height: 60px; 
-            border-radius: 5px;
-            font-size: 18px;
-        }
-        .highlight { background-color: yellow; }
-        #analysisSection {
-            margin: 20px 0;
-            padding: 15px;
-            background: #e8f5e9;
-            border-radius: 8px;
-            border: 1px solid #4caf50;
-        }
-        #analysisSection h3 {
-            margin-top: 0;
-            color: #2e7d32;
-        }
-        .analysis-item {
-            margin: 10px 0;
-            padding: 10px;
-            background: white;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .analysis-time {
-            font-size: 12px;
-            color: #666;
-        }
-        #timer {
-            font-weight: bold;
-            color: #1976d2;
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden;
+            background: #000;
         }
         
-        /* Body Language Styles */
-        #videoSection {
-            margin: 20px 0;
-            padding: 15px;
-            background: #e3f2fd;
-            border-radius: 8px;
-            border: 1px solid #2196f3;
+        /* Main layout */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
         }
-        #videoSection h3 {
-            margin-top: 0;
-            color: #1565c0;
+        
+        /* Video container - full bleed */
+        #videoContainer {
+            flex: 1;
+            position: relative;
+            background: #000;
         }
-        #cam {
-            display: block;
+        
+        #video {
             width: 100%;
-            max-width: 640px;
-            height: auto;
-            border-radius: 8px;
-            margin-bottom: 10px;
+            height: 100%;
+            object-fit: cover;
         }
-        #overlay {
-            border: 2px solid #2196f3;
-            border-radius: 8px;
-            max-width: 100%;
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
-        #bodyLanguageSection {
-            margin: 20px 0;
-            padding: 15px;
-            background: #fff3e0;
-            border-radius: 8px;
-            border: 1px solid #ff9800;
+        
+        /* Side panel */
+        .side-panel {
+            width: 320px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 16px;
+            box-sizing: border-box;
+            overflow-y: auto;
         }
-        #bodyLanguageSection h3 {
-            margin-top: 0;
-            color: #ef6c00;
-        }
-        .body-language-item {
-            margin: 10px 0;
-            padding: 10px;
-            background: white;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .metric {
-            display: inline-block;
-            margin: 5px 10px 5px 0;
-            padding: 5px 10px;
-            background: #f5f5f5;
-            border-radius: 15px;
+        
+        /* Status badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 9999px;
             font-size: 12px;
+            font-weight: 500;
+            color: white;
+            background: #DC2626;
+            transition: all 0.2s ease;
         }
-        .metric.good { background: #c8e6c9; color: #2e7d32; }
-        .metric.warning { background: #ffecb3; color: #f57c00; }
-        .metric.alert { background: #ffcdd2; color: #d32f2f; }
+        
+        .status-badge.connected {
+            background: #059669;
+        }
+        
+        .status-badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        
+        /* Card style */
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .card:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        
+        /* Typography */
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.95);
+            margin: 0 0 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-content {
+            font-size: 14px;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        /* Transcription area */
+        #currentTranscription { 
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 60px; 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 14px;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.9);
+            overflow-y: auto;
+            max-height: 120px;
+        }
+        
+        .highlight { 
+            background-color: rgba(59, 130, 246, 0.3);
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+        
+
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary {
+            background: #3B82F6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563EB;
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary.recording {
+            background: #DC2626;
+            animation: pulse 2s infinite;
+        }
+        
+        .btn-primary.recording:hover {
+            background: #B91C1C;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        /* Metrics display */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .metric-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .metric-item .icon {
+            font-size: 14px;
+        }
+        
+        .metric-item.happy { color: #10B981; }
+        .metric-item.neutral { color: #F59E0B; }
+        .metric-item.sad { color: #EF4444; }
+        .metric-item.alert { color: #10B981; }
+        .metric-item.tired { color: #F59E0B; }
+        .metric-item.very-tired { color: #EF4444; }
+        .metric-item.excellent { color: #10B981; }
+        .metric-item.good { color: #10B981; }
+        .metric-item.fair { color: #F59E0B; }
+        .metric-item.poor { color: #EF4444; }
+        
+        /* Analysis items */
+        .analysis-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 3px solid #3B82F6;
+        }
+        
+        .analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .analysis-number {
+            font-size: 11px;
+            color: #3B82F6;
+            font-weight: 500;
+        }
+        
+        .analysis-time {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        .analysis-text {
+            font-size: 13px;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .analysis-meta {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        /* Progress indicator */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #3B82F6;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .analysis-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #10B981, #3B82F6);
+            border-radius: 2px;
+            transition: width 0.1s ease;
+            width: 0%;
+            position: relative;
+        }
+        
+        .analysis-progress::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+
+        
+
+        
+
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            
+            .side-panel {
+                width: 100%;
+                height: 40vh;
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            
+            #videoContainer {
+                height: 60vh;
+            }
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Screen States */
+        .screen-state {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            transition: all 0.3s ease;
+        }
+        
+        .screen-state.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        /* Idle State */
+        .idle-state {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .start-practice-btn {
+            background: #3B82F6;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 20px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+        }
+        
+        .start-practice-btn:hover {
+            background: #2563EB;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(59, 130, 246, 0.4);
+        }
+        
+        .idle-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            margin-top: 16px;
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        /* Countdown State */
+        .countdown-state {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(15px);
+        }
+        
+        .countdown-number {
+            font-size: 120px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            animation: countdownPulse 1s ease-out;
+        }
+        
+        @keyframes countdownPulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .countdown-tip {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            text-align: center;
+        }
+        
+        /* Recording State */
+        .recording-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 16px;
+            height: 16px;
+            background: #DC2626;
+            border-radius: 50%;
+            animation: recordingPulse 2s infinite;
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        @keyframes recordingPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.2); }
+        }
+        
+        .stop-btn {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #DC2626;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3);
+        }
+        
+        .stop-btn:hover {
+            background: #B91C1C;
+            transform: translateX(-50%) translateY(-2px);
+        }
+        
+        /* Feedback Cards */
+        .feedback-container {
+            position: absolute;
+            bottom: 120px;
+            left: 20px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .feedback-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1F2937;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transform: translateX(-100%);
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            max-width: 300px;
+        }
+        
+        .feedback-card.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .feedback-card.fade-out {
+            transform: translateX(0) translateY(-20px);
+            opacity: 0;
+        }
+        
+        .feedback-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        
+        .feedback-text {
+            flex: 1;
+        }
+        
+        /* Edge Lighting */
+        .edge-lighting {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 3px solid transparent;
+            border-radius: 12px;
+            transition: border-color 0.3s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .edge-lighting.green { border-color: #10B981; }
+        .edge-lighting.yellow { border-color: #F59E0B; }
+        .edge-lighting.red { border-color: #EF4444; }
+        
+        /* Progress Timer */
+        .progress-timer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            z-index: 10;
+        }
+        
+        .timer-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 3px solid #3B82F6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1F2937;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .timer-circle::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border-radius: 50%;
+            background: conic-gradient(var(--progress-color, #3B82F6 0deg, transparent 0deg));
+            z-index: -1;
+            transition: background 0.3s ease;
+        }
+        
+        /* Paused State */
+        .paused-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+        }
+        
+        .paused-content {
+            text-align: center;
+            color: white;
+        }
+        
+        .paused-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .paused-buttons {
+            display: flex;
+            gap: 16px;
+            margin-top: 24px;
+        }
+        
+        .btn-resume {
+            background: #3B82F6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-resume:hover {
+            background: #2563EB;
+            transform: translateY(-1px);
+        }
+        
+        .btn-end {
+            background: transparent;
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-end:hover {
+            border-color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Session Summary */
+        .summary-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(20px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+        
+        .summary-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+            color: #1F2937;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .summary-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: #10B981;
+        }
+        
+        .score-rings {
+            display: flex;
+            justify-content: space-around;
+            margin: 32px 0;
+        }
+        
+        .score-ring {
+            text-align: center;
+        }
+        
+        .score-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 8px;
+        }
+        
+        .score-circle.voice { background: #3B82F6; }
+        .score-circle.body { background: #10B981; }
+        .score-circle.energy { background: #F59E0B; }
+        
+        .score-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #6B7280;
+        }
+        
+        /* Typography */
+        .text-xl {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .text-m {
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .text-s {
+            font-size: 14px;
+            font-weight: 400;
+        }
     </style>
 </head>
 <body>
-    <h1>Live Speech & Body Language Therapy</h1>
-    <div class="status" id="status">Disconnected</div>
-    
-    <div class="main-container">
-        <div class="left-panel">
-            <div id="currentTranscription">
-                <strong>Live transcription:</strong> <span id="timer"></span>
-                <div id="transcriptionText">Click "Start Recording" and speak...</div>
+    <div class="app-container">
+        <!-- Video container -->
+        <div id="videoContainer">
+            <video id="video" autoplay muted playsinline></video>
+            <canvas id="canvas"></canvas>
+            
+            <!-- Edge Lighting -->
+            <div class="edge-lighting" id="edgeLighting"></div>
+            
+            <!-- Progress Timer -->
+            <div class="progress-timer" id="progressTimer" style="display: none;">
+                <div class="timer-circle" id="timerCircle">
+                    <span id="timerText">0:00</span>
+                </div>
             </div>
             
-            <div id="analysisSection">
-                <h3>Speech Therapist Analysis</h3>
-                <div id="analysisContent">Analysis will appear every 10 seconds while speaking...</div>
+            <!-- Recording Indicator -->
+            <div class="recording-indicator" id="recordingIndicator" style="display: none;"></div>
+            
+            <!-- Stop Button -->
+            <button class="stop-btn" id="stopBtn" style="display: none;">⏹ Stop Practice</button>
+            
+            <!-- Feedback Container -->
+            <div class="feedback-container" id="feedbackContainer"></div>
+            
+
+            
+            <!-- Screen States -->
+            <div class="screen-state idle-state" id="idleState">
+                <div style="text-align: center;">
+                    <button class="start-practice-btn" id="startPracticeBtn">🎤 Start Practice</button>
+                    <div class="idle-subtitle">We'll analyze posture, voice & energy in real-time</div>
+                </div>
             </div>
             
-            <div id="messages"></div>
-            <button id="connectButton">Connect to Server</button>
-            <button id="recordButton">Start Recording</button>
+            <div class="screen-state countdown-state hidden" id="countdownState">
+                <div class="countdown-number" id="countdownNumber">3</div>
+                <div class="countdown-tip">Sit up straight, smile</div>
         </div>
         
-        <div class="right-panel">
-            <div id="videoSection">
-                <h3>Video Analysis</h3>
-                <div style="position: relative; display: inline-block;">
-                    <video id="video" autoplay muted playsinline></video>
-                    <canvas id="canvas" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+            <div class="screen-state recording-state hidden" id="recordingState">
+                <div class="recording-indicator"></div>
+                <div class="stop-btn" onclick="stopRecording()">Stop Recording</div>
                 </div>
-                <button id="cameraButton">Start Camera</button>
+
+            <div class="screen-state paused-overlay hidden" id="pausedOverlay">
+                <div class="paused-content">
+                    <div class="paused-title">Practice Paused</div>
+                    <div class="paused-buttons">
+                        <button class="btn-resume" id="resumeBtn">▶ Resume</button>
+                        <button class="btn-end" id="endSessionBtn">End Session</button>
+                    </div>
+                </div>
             </div>
             
-            <div id="bodyLanguageSection">
-                <h3>Body Language Analysis</h3>
-                <div id="bodyLanguageContent">
-                    <div class="body-language-item">
-                        <strong>Current Status:</strong>
-                        <div id="currentMetrics">
-                            <span class="metric" id="emotionMetric">Emotion: Unknown</span>
-                            <span class="metric" id="postureMetric">Posture: Unknown</span>
-                            <span class="metric" id="fatigueMetric">Fatigue: Unknown</span>
+            <div class="screen-state summary-overlay hidden" id="summaryOverlay">
+                <div class="summary-card">
+                    <div class="summary-title">🎉 Great Practice Session!</div>
+                    <div class="score-rings">
+                        <div class="score-ring">
+                            <div class="score-circle voice" id="voiceScore">85%</div>
+                            <div class="score-label">Voice</div>
                         </div>
+                        <div class="score-ring">
+                            <div class="score-circle body" id="bodyScore">92%</div>
+                            <div class="score-label">Body</div>
                     </div>
-                    <div id="bodyLanguageFeedback">Body language feedback will appear here...</div>
+                        <div class="score-ring">
+                            <div class="score-circle energy" id="energyScore">78%</div>
+                            <div class="score-label">Energy</div>
                 </div>
             </div>
+                    <div class="text-m" style="margin-top: 24px;">
+                        Keep practicing to improve your presentation skills!
+                    </div>
+                    <button class="btn btn-primary" id="newSessionBtn" style="margin-top: 24px;">Start New Session</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Side panel -->
+        <div class="side-panel">
+            <!-- Status -->
+            <div class="status-badge" id="status">
+                <span class="dot"></span>
+                <span id="statusText">Offline</span>
+            </div>
+            
+            <!-- Live Transcription -->
+            <div class="card">
+                <div class="card-title">
+                    🎤 Live Transcription
+                </div>
+                <div class="card-content">
+                    <div id="currentTranscription">
+                        <div id="transcriptionText">Click "Start Practice" and speak...</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                        <div class="analysis-progress" id="analysisProgress" style="display: none;"></div>
+                    </div>
+
+                </div>
+            </div>
+            
+            <!-- Speech Analysis -->
+            <div class="card">
+                <div class="card-title">💬 Speech Analysis</div>
+                <div class="card-content">
+                    <div id="analysisContent">Analysis will appear every 10 seconds...</div>
+                </div>
+            </div>
+            
+            <!-- Body Language -->
+            <div class="card">
+                <div class="card-title">👤 Body Language</div>
+                <div class="card-content">
+                    <div class="metrics-grid">
+                        <div class="metric-item" id="emotionMetric">
+                            <span class="icon">😐</span>
+                            <span>Neutral</span>
+                        </div>
+                        <div class="metric-item" id="postureMetric">
+                            <span class="icon">📏</span>
+                            <span>Good</span>
+                        </div>
+                        <div class="metric-item" id="fatigueMetric">
+                            <span class="icon">⚡</span>
+                            <span>Alert</span>
+                        </div>
+                    </div>
+                    <div id="bodyLanguageFeedback" style="margin-top: 12px; font-size: 13px; color: rgba(255, 255, 255, 0.8);">
+                        Body language feedback will appear here...
+                    </div>
+                </div>
+            </div>
+            
+            
         </div>
     </div>
 
@@ -172,71 +876,365 @@
         let ws = null;
         let recognition = null;
         let isRecording = false;
-        let analysisTimer = null;
-        let secondsElapsed = 0;
         let isCameraActive = false;
+        let sessionStartTime = 0;
+        let sessionDuration = 0;
+        let isPaused = false;
+        let feedbackQueue = [];
+        let performanceScore = 0;
+        let analysisTimer = null;
+        let analysisProgressValue = 0;
         const clientId = Math.floor(Math.random() * 1000);
-        const messages = document.getElementById('messages');
-        const connectButton = document.getElementById('connectButton');
-        const recordButton = document.getElementById('recordButton');
-        const cameraButton = document.getElementById('cameraButton');
+        
+        // DOM elements
         const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
         const transcriptionText = document.getElementById('transcriptionText');
         const analysisContent = document.getElementById('analysisContent');
-        const timer = document.getElementById('timer');
-        const bodyLanguageContent = document.getElementById('bodyLanguageFeedback');
+        const progressFill = document.getElementById('progressFill');
+        const analysisProgress = document.getElementById('analysisProgress');
+        const bodyLanguageFeedback = document.getElementById('bodyLanguageFeedback');
         const emotionMetric = document.getElementById('emotionMetric');
         const postureMetric = document.getElementById('postureMetric');
         const fatigueMetric = document.getElementById('fatigueMetric');
+        
+        // Screen state elements
+        const idleState = document.getElementById('idleState');
+        const countdownState = document.getElementById('countdownState');
+        const countdownNumber = document.getElementById('countdownNumber');
+        const startPracticeBtn = document.getElementById('startPracticeBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const progressTimer = document.getElementById('progressTimer');
+        const timerCircle = document.getElementById('timerCircle');
+        const timerText = document.getElementById('timerText');
+        const pausedOverlay = document.getElementById('pausedOverlay');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const endSessionBtn = document.getElementById('endSessionBtn');
+        const summaryOverlay = document.getElementById('summaryOverlay');
+        const newSessionBtn = document.getElementById('newSessionBtn');
+        const feedbackContainer = document.getElementById('feedbackContainer');
+        const edgeLighting = document.getElementById('edgeLighting');
 
         // Check if browser supports speech recognition
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         
         if (!SpeechRecognition) {
             alert('Your browser does not support speech recognition. Please use Chrome, Edge, or Safari.');
-            recordButton.disabled = true;
         }
 
-        function addMessage(message, className) {
-            const div = document.createElement('div');
-            div.className = className;
-            div.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
-            messages.appendChild(div);
-            messages.scrollTop = messages.scrollHeight;
+        // Screen State Management
+        function showState(stateElement) {
+            // Hide all states
+            document.querySelectorAll('.screen-state, .paused-overlay, .summary-overlay').forEach(el => {
+                el.classList.add('hidden');
+            });
+            // Show target state
+            stateElement.classList.remove('hidden');
         }
 
-        async function connect() {
+        async function startPractice() {
+            // Auto-connect to server if not connected
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                await connect();
+            }
+            
+            showState(countdownState);
+            startCountdown();
+        }
+
+        function startCountdown() {
+            let count = 3;
+            countdownNumber.textContent = count;
+            
+            const countdownInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownNumber.textContent = count;
+                    countdownNumber.style.animation = 'none';
+                    setTimeout(() => {
+                        countdownNumber.style.animation = 'countdownPulse 1s ease-out';
+                    }, 10);
+                } else {
+                    clearInterval(countdownInterval);
+                    startRecordingSession();
+                }
+            }, 1000);
+        }
+
+        async function startRecordingSession() {
+            sessionStartTime = Date.now();
+            sessionDuration = 0;
+            performanceScore = 0;
+            
+            // Hide all screen states to show the video with overlay elements
+            document.querySelectorAll('.screen-state, .paused-overlay, .summary-overlay').forEach(el => {
+                el.classList.add('hidden');
+            });
+            
+            // Show recording elements
+            recordingIndicator.style.display = 'block';
+            stopBtn.style.display = 'block';
+            progressTimer.style.display = 'block';
+            
+            // Automatically start camera and body language analysis
+            if (!isCameraActive) {
+                try {
+                    const success = await window.bodyLanguage.start();
+                    if (success) {
+                        // Set WebSocket reference for body language module
+                        if (ws) {
+                            window.bodyLanguage.setWebSocket(ws);
+                        }
+                        isCameraActive = true;
+                    }
+                } catch (error) {
+                    console.error('Camera error:', error.message);
+                }
+            }
+            
+            // Start recording immediately
+            startRecording();
+            
+            // Start session timer
+            const sessionTimer = setInterval(() => {
+                if (!isPaused) {
+                    sessionDuration++;
+                    updateSessionTimer();
+                    updateEdgeLighting();
+                }
+            }, 1000);
+            
+            // Store timer reference
+            window.sessionTimer = sessionTimer;
+        }
+
+        function updateSessionTimer() {
+            const minutes = Math.floor(sessionDuration / 60);
+            const seconds = sessionDuration % 60;
+            timerText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Update circular progress (assuming 5 minute session)
+            const progress = (sessionDuration / 300) * 360;
+            timerCircle.style.setProperty('--progress', `${progress}deg`);
+            timerCircle.style.setProperty('--progress-color', `#3B82F6 ${progress}deg, transparent ${progress}deg`);
+        }
+
+        function updateEdgeLighting() {
+            // Calculate performance score based on recent feedback
+            const recentFeedback = feedbackQueue.slice(-5);
+            const positiveCount = recentFeedback.filter(f => f.type === 'positive').length;
+            const negativeCount = recentFeedback.filter(f => f.type === 'negative').length;
+            
+            if (positiveCount > negativeCount) {
+                edgeLighting.className = 'edge-lighting green';
+            } else if (negativeCount > positiveCount) {
+                edgeLighting.className = 'edge-lighting red';
+            } else {
+                edgeLighting.className = 'edge-lighting yellow';
+            }
+        }
+
+        function pauseSession() {
+            isPaused = true;
+            showState(pausedOverlay);
+            if (recognition && isRecording) {
+                recognition.stop();
+            }
+        }
+
+        function resumeSession() {
+            isPaused = false;
+            // Hide all screen states to show the video with overlay elements
+            document.querySelectorAll('.screen-state, .paused-overlay, .summary-overlay').forEach(el => {
+                el.classList.add('hidden');
+            });
+            startRecording();
+        }
+
+        function endSession() {
+            // Stop recording
+            if (recognition && isRecording) {
+                recognition.stop();
+            }
+            
+            // Clear timers
+            if (window.sessionTimer) {
+                clearInterval(window.sessionTimer);
+            }
+            
+            // Calculate scores
+            calculateSessionScores();
+            
+            // Show summary
+            showState(summaryOverlay);
+        }
+
+        function calculateSessionScores() {
+            // Calculate scores based on feedback and metrics
+            const voiceScore = Math.min(100, Math.max(0, 85 + (performanceScore * 5)));
+            const bodyScore = Math.min(100, Math.max(0, 92 + (performanceScore * 3)));
+            const energyScore = Math.min(100, Math.max(0, 78 + (performanceScore * 4)));
+            
+            document.getElementById('voiceScore').textContent = `${Math.round(voiceScore)}%`;
+            document.getElementById('bodyScore').textContent = `${Math.round(bodyScore)}%`;
+            document.getElementById('energyScore').textContent = `${Math.round(energyScore)}%`;
+        }
+
+        function resetSession() {
+            // Reset all states
+            showState(idleState);
+            recordingIndicator.style.display = 'none';
+            stopBtn.style.display = 'none';
+            progressTimer.style.display = 'none';
+            edgeLighting.className = 'edge-lighting';
+            
+            // Reset analysis timer
+            resetAnalysisTimer();
+            
+            // Stop camera if active
+            if (isCameraActive) {
+                const videoElement = document.getElementById('video');
+                const stream = videoElement ? videoElement.srcObject : null;
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    videoElement.srcObject = null;
+                }
+                isCameraActive = false;
+            }
+            
+            // Clear feedback
+            feedbackContainer.innerHTML = '';
+            feedbackQueue = [];
+            
+            // Reset variables
+            isRecording = false;
+            isPaused = false;
+            sessionDuration = 0;
+            performanceScore = 0;
+        }
+
+        // Feedback System
+        function showFeedback(message, type = 'info', duration = 6000) {
+            const feedback = {
+                message,
+                type,
+                timestamp: Date.now()
+            };
+            
+            feedbackQueue.push(feedback);
+            
+            // Keep only last 10 feedback items
+            if (feedbackQueue.length > 10) {
+                feedbackQueue.shift();
+            }
+            
+            // Create feedback card
+            const card = document.createElement('div');
+            card.className = 'feedback-card';
+            
+            const icon = getFeedbackIcon(type);
+            card.innerHTML = `
+                <div class="feedback-icon">${icon}</div>
+                <div class="feedback-text">${message}</div>
+            `;
+            
+            feedbackContainer.appendChild(card);
+            
+            // Animate in
+            setTimeout(() => {
+                card.classList.add('show');
+            }, 100);
+            
+            // Auto-dismiss
+            setTimeout(() => {
+                card.classList.add('fade-out');
+                setTimeout(() => {
+                    if (card.parentNode) {
+                        card.parentNode.removeChild(card);
+                    }
+                }, 300);
+            }, duration);
+            
+            // Update performance score
+            if (type === 'positive') {
+                performanceScore += 1;
+            } else if (type === 'negative') {
+                performanceScore -= 1;
+            }
+        }
+
+        function getFeedbackIcon(type) {
+            const icons = {
+                positive: '👍',
+                warning: '⚠️',
+                negative: '⛔',
+                info: '💡'
+            };
+            return icons[type] || icons.info;
+        }
+
+
+
+
+
+        function connect() {
+            return new Promise((resolve, reject) => {
             ws = new WebSocket(`ws://localhost:8000/ws/text/${clientId}`);
 
             ws.onopen = () => {
-                status.textContent = `Connected as Client #${clientId}`;
-                status.style.color = 'green';
-                connectButton.textContent = 'Disconnect';
-                addMessage('Connected to server', 'system');
+                    status.className = 'status-badge connected';
+                    statusText.textContent = `Client #${clientId}`;
+                    
+                    // Start heartbeat to keep connection alive
+                    const heartbeat = setInterval(() => {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                type: 'heartbeat',
+                                client_id: clientId,
+                                timestamp: new Date().toISOString()
+                            }));
+                        } else {
+                            clearInterval(heartbeat);
+                        }
+                    }, 30000); // Send heartbeat every 30 seconds
+                    
+                    resolve();
             };
 
             ws.onmessage = (event) => {
+                console.log('WebSocket message received:', event.data);
+                try {
                 const data = JSON.parse(event.data);
+                    console.log('Parsed message data:', data);
+                    
                 if (data.type === 'response') {
                     // Don't show character count messages
+                        console.log('Response message ignored');
                 } else if (data.type === 'analysis') {
+                        console.log('Speech analysis received:', data);
                     displayAnalysis(data);
                 } else if (data.type === 'body_language_feedback') {
+                        console.log('Body language feedback received:', data);
                     displayBodyLanguageFeedback(data);
+                    } else {
+                        console.log('Unknown message type:', data.type, data);
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error, event.data);
                 }
             };
 
             ws.onerror = (error) => {
-                addMessage(`Error: ${error}`, 'error');
+                    reject(error);
             };
 
             ws.onclose = () => {
-                status.textContent = 'Disconnected';
-                status.style.color = 'red';
-                connectButton.textContent = 'Connect to Server';
-                addMessage('Disconnected from server', 'system');
+                    status.className = 'status-badge';
+                    statusText.textContent = 'Offline';
                 ws = null;
             };
+            });
         }
 
         function disconnect() {
@@ -245,150 +1243,218 @@
             }
         }
 
+        // Event Listeners
+        startPracticeBtn.onclick = startPractice;
+        stopBtn.onclick = pauseSession;
+        resumeBtn.onclick = resumeSession;
+        endSessionBtn.onclick = endSession;
+        newSessionBtn.onclick = resetSession;
+
+
+
+
+
+
+
+        // Listen for body language data updates to update UI
+        window.addEventListener('bodyLanguageUpdate', (event) => {
+            const { emotion, posture, fatigue } = event.detail;
+            updateBodyLanguageMetrics(emotion, posture, fatigue);
+        });
+
+        // Enable body language analysis on load
+        window.addEventListener('load', () => {
+            console.log('Face detection ready - will start automatically with practice');
+        });
+
+        // Update existing functions to integrate with feedback system
         function displayAnalysis(data) {
+            console.log('Displaying analysis:', data.analysis_number, data.text);
+            
+            // Complete the loading bar when analysis arrives
+            if (analysisTimer) {
+                clearInterval(analysisTimer);
+                analysisTimer = null;
+            }
+            analysisProgress.style.display = 'none';
+            progressFill.style.display = 'block';
+            analysisProgressValue = 0;
+            
+            // Clear transcription text and reset for fresh start
+            transcriptionText.textContent = 'Listening...';
+            transcriptionText.innerHTML = 'Listening...';
+            
+            // Reset the global transcript for next analysis cycle
+            if (window.currentFinalTranscript !== undefined) {
+                window.currentFinalTranscript = '';
+            }
+            
+            // Start new timer for next analysis
+            startAnalysisTimer();
+            
             const analysisDiv = document.createElement('div');
             analysisDiv.className = 'analysis-item';
             
             const headerDiv = document.createElement('div');
-            headerDiv.style.display = 'flex';
-            headerDiv.style.justifyContent = 'space-between';
-            headerDiv.style.marginBottom = '8px';
+            headerDiv.className = 'analysis-header';
+            
+            const numberDiv = document.createElement('div');
+            numberDiv.className = 'analysis-number';
+            numberDiv.textContent = `Analysis #${data.analysis_number || 1}`;
             
             const timeDiv = document.createElement('div');
             timeDiv.className = 'analysis-time';
             timeDiv.textContent = new Date(data.timestamp).toLocaleTimeString();
             
-            const numberDiv = document.createElement('div');
-            numberDiv.style.color = '#1976d2';
-            numberDiv.style.fontWeight = 'bold';
-            numberDiv.textContent = `Analysis #${data.analysis_number || 1}`;
-            
-            headerDiv.appendChild(timeDiv);
             headerDiv.appendChild(numberDiv);
+            headerDiv.appendChild(timeDiv);
             
             const textDiv = document.createElement('div');
-            textDiv.innerHTML = `<strong>Feedback:</strong> ${data.text}`;
+            textDiv.className = 'analysis-text';
+            textDiv.textContent = data.text;
             
-            const transcriptDiv = document.createElement('div');
-            transcriptDiv.style.fontSize = '12px';
-            transcriptDiv.style.color = '#666';
-            transcriptDiv.style.marginTop = '5px';
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'analysis-meta';
             const wordCount = data.transcript_analyzed.split(' ').length;
-            transcriptDiv.innerHTML = `<em>Based on ${wordCount} words: "${data.transcript_analyzed.substring(0, 50)}..."</em>`;
+            metaDiv.textContent = `${wordCount} words analyzed`;
             
             analysisDiv.appendChild(headerDiv);
             analysisDiv.appendChild(textDiv);
-            analysisDiv.appendChild(transcriptDiv);
+            analysisDiv.appendChild(metaDiv);
             
-            // Keep history of analyses
-            if (!analysisContent.querySelector('.analysis-item')) {
+            // Replace old analysis with new one
                 analysisContent.innerHTML = '';
+            analysisContent.appendChild(analysisDiv);
+            
+
+            
+            // Show feedback based on analysis content
+            const analysisText = data.text.toLowerCase();
+            if (analysisText.includes('great') || analysisText.includes('good') || analysisText.includes('improved')) {
+                showFeedback('Great progress! Keep it up!', 'positive');
+            } else if (analysisText.includes('slow') || analysisText.includes('pace')) {
+                showFeedback('Try slowing your pace by ~10%', 'warning');
+            } else if (analysisText.includes('volume') || analysisText.includes('speak')) {
+                showFeedback('Speak a bit louder', 'warning');
+            } else if (analysisText.includes('filler') || analysisText.includes('um')) {
+                showFeedback('Try reducing filler words', 'warning');
             }
-            
-            // Insert new analysis at the top
-            analysisContent.insertBefore(analysisDiv, analysisContent.firstChild);
-            
-            // Keep only last 3 analyses
-            const analyses = analysisContent.querySelectorAll('.analysis-item');
-            if (analyses.length > 3) {
-                analyses[analyses.length - 1].remove();
-            }
-            
-            addMessage(`Received analysis #${data.analysis_number || 1} from speech therapist`, 'system');
         }
 
         function displayBodyLanguageFeedback(data) {
-            const feedbackDiv = document.createElement('div');
-            feedbackDiv.className = 'body-language-item';
+            bodyLanguageFeedback.textContent = data.text;
             
-            const headerDiv = document.createElement('div');
-            headerDiv.style.display = 'flex';
-            headerDiv.style.justifyContent = 'space-between';
-            headerDiv.style.marginBottom = '8px';
-            
-            const timeDiv = document.createElement('div');
-            timeDiv.className = 'analysis-time';
-            timeDiv.textContent = new Date(data.timestamp).toLocaleTimeString();
-            
-            const numberDiv = document.createElement('div');
-            numberDiv.style.color = '#ef6c00';
-            numberDiv.style.fontWeight = 'bold';
-            numberDiv.textContent = `Body Language #${data.analysis_number || 1}`;
-            
-            headerDiv.appendChild(timeDiv);
-            headerDiv.appendChild(numberDiv);
-            
-            const textDiv = document.createElement('div');
-            textDiv.innerHTML = `<strong>Feedback:</strong> ${data.text}`;
-            
-            feedbackDiv.appendChild(headerDiv);
-            feedbackDiv.appendChild(textDiv);
-            
-            // Keep history of feedback
-            if (!bodyLanguageContent.querySelector('.body-language-item')) {
-                bodyLanguageContent.innerHTML = '';
+            // Show feedback based on body language
+            const feedbackText = data.text.toLowerCase();
+            if (feedbackText.includes('good') || feedbackText.includes('excellent') || feedbackText.includes('great')) {
+                showFeedback('Excellent body language!', 'positive');
+            } else if (feedbackText.includes('posture') || feedbackText.includes('straight')) {
+                showFeedback('Sit up straight for better presence', 'warning');
+            } else if (feedbackText.includes('eye contact')) {
+                showFeedback('Hold eye contact with the camera', 'warning');
+            } else if (feedbackText.includes('energy') || feedbackText.includes('tired')) {
+                showFeedback('Try to show more energy', 'warning');
             }
-            
-            // Insert new feedback at the top (after current metrics)
-            const currentMetricsDiv = bodyLanguageContent.querySelector('.body-language-item');
-            if (currentMetricsDiv && currentMetricsDiv.nextSibling) {
-                bodyLanguageContent.insertBefore(feedbackDiv, currentMetricsDiv.nextSibling);
-            } else {
-                bodyLanguageContent.appendChild(feedbackDiv);
-            }
-            
-            // Keep only last 2 feedback items
-            const feedbacks = bodyLanguageContent.querySelectorAll('.body-language-item');
-            if (feedbacks.length > 3) { // Current metrics + 2 feedback items
-                feedbacks[feedbacks.length - 1].remove();
-            }
-            
-            addMessage(`Received body language analysis #${data.analysis_number || 1}`, 'system');
         }
 
         function updateBodyLanguageMetrics(emotion, posture, fatigue) {
-            // Update emotion metric
-            emotionMetric.textContent = `Emotion: ${emotion}`;
-            emotionMetric.className = 'metric';
-            if (['happy', 'surprised'].includes(emotion)) {
-                emotionMetric.classList.add('good');
-            } else if (['sad', 'angry', 'fearful'].includes(emotion)) {
-                emotionMetric.classList.add('alert');
-            } else {
-                emotionMetric.classList.add('warning');
-            }
+            // Update emotion metric with emoji and color
+            const emotionIcon = getEmotionIcon(emotion);
+            const emotionClass = getEmotionClass(emotion);
+            emotionMetric.innerHTML = `<span class="icon">${emotionIcon}</span><span>${emotion}</span>`;
+            emotionMetric.className = `metric-item ${emotionClass}`;
 
             // Update posture metric
-            postureMetric.textContent = `Posture: ${posture.label}`;
-            postureMetric.className = 'metric';
-            if (posture.label === 'good') {
-                postureMetric.classList.add('good');
-            } else if (posture.label === 'poor') {
-                postureMetric.classList.add('alert');
-            } else {
-                postureMetric.classList.add('warning');
-            }
+            const postureIcon = '📏';
+            const postureClass = getPostureClass(posture.label);
+            postureMetric.innerHTML = `<span class="icon">${postureIcon}</span><span>${posture.label}</span>`;
+            postureMetric.className = `metric-item ${postureClass}`;
 
             // Update fatigue metric
-            fatigueMetric.textContent = `Energy: ${fatigue.label}`;
-            fatigueMetric.className = 'metric';
-            if (fatigue.label === 'alert') {
-                fatigueMetric.classList.add('good');
+            const fatigueIcon = '⚡';
+            const fatigueClass = getFatigueClass(fatigue.label);
+            fatigueMetric.innerHTML = `<span class="icon">${fatigueIcon}</span><span>${fatigue.label}</span>`;
+            fatigueMetric.className = `metric-item ${fatigueClass}`;
+            
+            // Show real-time feedback based on metrics
+            if (emotion === 'happy') {
+                showFeedback('Great energy! Keep smiling!', 'positive', 4000);
+            } else if (posture.label === 'poor') {
+                showFeedback('Adjust your posture', 'warning', 4000);
             } else if (fatigue.label === 'tired') {
-                fatigueMetric.classList.add('alert');
-            } else {
-                fatigueMetric.classList.add('warning');
+                showFeedback('Show more enthusiasm', 'warning', 4000);
             }
         }
 
-        function updateTimer() {
-            const nextAnalysis = 10 - (secondsElapsed % 10);
-            timer.textContent = `(Next analysis in ${nextAnalysis}s)`;
+        function getEmotionIcon(emotion) {
+            const icons = {
+                'happy': '😄',
+                'sad': '😞',
+                'angry': '😠',
+                'surprised': '😲',
+                'fearful': '😨',
+                'disgusted': '🤢',
+                'neutral': '😐'
+            };
+            return icons[emotion] || '😐';
+        }
+
+        function getEmotionClass(emotion) {
+            if (['happy', 'surprised'].includes(emotion)) return 'happy';
+            if (['sad', 'angry', 'fearful', 'disgusted'].includes(emotion)) return 'sad';
+            return 'neutral';
+        }
+
+        function getPostureClass(posture) {
+            if (['excellent', 'good'].includes(posture)) return 'good';
+            if (posture === 'poor') return 'poor';
+            return 'fair';
+        }
+
+        function getFatigueClass(fatigue) {
+            if (fatigue === 'alert') return 'alert';
+            if (fatigue === 'tired') return 'tired';
+            if (fatigue === 'very tired') return 'very-tired';
+            return 'alert';
+        }
+
+
+
+        function startAnalysisTimer() {
+            analysisProgressValue = 0;
+            analysisProgress.style.display = 'block';
+            progressFill.style.display = 'none';
+            
+            analysisTimer = setInterval(() => {
+                analysisProgressValue += 1;
+                analysisProgress.style.width = `${analysisProgressValue}%`;
+                
+                // Don't complete the bar - wait for actual analysis
+                if (analysisProgressValue >= 100) {
+                    analysisProgressValue = 100;
+                    analysisProgress.style.width = '100%';
+                    console.log('Analysis timer completed - waiting for backend analysis...');
+                }
+            }, 100); // 10 seconds total (100 * 100ms)
+        }
+        
+        function resetAnalysisTimer() {
+            if (analysisTimer) {
+                clearInterval(analysisTimer);
+                analysisTimer = null;
+            }
+            analysisProgressValue = 0;
+            analysisProgress.style.display = 'none';
+            progressFill.style.display = 'block';
         }
 
         function startRecording() {
-            if (!SpeechRecognition) return;
+            if (!SpeechRecognition) {
+                console.error('Speech recognition not supported');
+                return;
+            }
 
+            console.log('Starting speech recognition...');
             recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
@@ -396,33 +1462,30 @@
 
             let finalTranscript = '';
             let lastSentIndex = 0;
+            
+            // Make finalTranscript accessible to displayAnalysis function
+            window.currentFinalTranscript = finalTranscript;
 
             recognition.onstart = () => {
+                console.log('Speech recognition started');
                 isRecording = true;
-                recordButton.textContent = 'Stop Recording';
-                recordButton.classList.add('recording');
                 transcriptionText.textContent = 'Listening...';
-                addMessage('Speech recognition started', 'system');
-                
-                // Start timer
-                secondsElapsed = 0;
-                analysisTimer = setInterval(() => {
-                    secondsElapsed++;
-                    updateTimer();
-                }, 1000);
-                updateTimer();
+                startAnalysisTimer();
             };
 
             recognition.onresult = (event) => {
+                console.log('Speech recognition result:', event.results.length, 'results');
                 let interimTranscript = '';
                 let currentTranscript = '';
                 
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
+                    console.log(`Result ${i}: "${transcript}" (final: ${event.results[i].isFinal})`);
                     
                     if (event.results[i].isFinal) {
                         finalTranscript += transcript + ' ';
                         currentTranscript = finalTranscript;
+                        window.currentFinalTranscript = finalTranscript;
                     } else {
                         interimTranscript += transcript;
                         currentTranscript = finalTranscript + interimTranscript;
@@ -431,40 +1494,37 @@
                 
                 // Stream ALL text (final + interim) to backend continuously
                 if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
+                    const message = {
                         type: 'streaming_transcription',
                         text: currentTranscript.trim(),
                         is_final: interimTranscript === '',
                         client_id: clientId,
                         timestamp: new Date().toISOString()
-                    }));
+                    };
+                    console.log('Sending transcription to server:', message);
+                    ws.send(JSON.stringify(message));
+                } else {
+                    console.log('WebSocket not ready. State:', ws ? ws.readyState : 'null');
                 }
                 
                 // Update the display with both final and interim results
                 transcriptionText.innerHTML = 
                     finalTranscript + 
                     '<span class="highlight">' + interimTranscript + '</span>';
+                
+                // Auto-scroll to bottom
+                const transcriptionContainer = document.getElementById('currentTranscription');
+                transcriptionContainer.scrollTop = transcriptionContainer.scrollHeight;
             };
 
             recognition.onerror = (event) => {
-                addMessage(`Recognition error: ${event.error}`, 'error');
                 if (event.error === 'no-speech') {
                     transcriptionText.textContent = 'No speech detected. Please try again.';
                 }
             };
 
             recognition.onend = () => {
-                isRecording = false;
-                recordButton.textContent = 'Start Recording';
-                recordButton.classList.remove('recording');
-                addMessage('Speech recognition stopped', 'system');
-                
-                // Stop timer
-                if (analysisTimer) {
-                    clearInterval(analysisTimer);
-                    analysisTimer = null;
-                }
-                timer.textContent = '';
+                console.log('Speech recognition ended');
                 
                 // Send any remaining text
                 const remainingText = finalTranscript.substring(lastSentIndex);
@@ -476,6 +1536,21 @@
                         timestamp: new Date().toISOString()
                     }));
                 }
+
+                // Restart recognition if still in recording state
+                if (isRecording && !isPaused) {
+                    console.log('Restarting speech recognition...');
+                    setTimeout(() => {
+                        try {
+            recognition.start();
+                        } catch (error) {
+                            console.error('Failed to restart recognition:', error);
+                        }
+                    }, 100);
+            } else {
+                    isRecording = false;
+                    progressFill.style.width = '0%';
+                }
             };
 
             recognition.start();
@@ -486,68 +1561,6 @@
                 recognition.stop();
             }
         }
-
-        connectButton.onclick = () => {
-            if (ws) {
-                disconnect();
-            } else {
-                connect();
-            }
-        };
-
-        recordButton.onclick = () => {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
-            }
-        };
-
-        cameraButton.onclick = async () => {
-            if (isCameraActive) {
-                // Stop camera
-                const camElement = document.getElementById('cam');
-                const stream = camElement ? camElement.srcObject : null;
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                    camElement.srcObject = null;
-                }
-                isCameraActive = false;
-                cameraButton.textContent = 'Start Camera';
-                addMessage('Camera stopped', 'system');
-            } else {
-                // Start camera and body language analysis
-                addMessage('Starting camera and body language analysis...', 'system');
-                try {
-                    const success = await window.bodyLanguage.start();
-                    if (success) {
-                        // Set WebSocket reference for body language module
-                        if (ws) {
-                            window.bodyLanguage.setWebSocket(ws);
-                        }
-                        isCameraActive = true;
-                        cameraButton.textContent = 'Stop Camera';
-                        addMessage('Camera and body language analysis started', 'system');
-                    } else {
-                        addMessage('Failed to start camera or load ML models', 'error');
-                    }
-                } catch (error) {
-                    addMessage(`Camera error: ${error.message}`, 'error');
-                }
-            }
-        };
-
-        // Listen for body language data updates to update UI
-        window.addEventListener('bodyLanguageUpdate', (event) => {
-            const { emotion, posture, fatigue } = event.detail;
-            updateBodyLanguageMetrics(emotion, posture, fatigue);
-        });
-
-        // Enable camera button immediately since we use simple detection
-        window.addEventListener('load', () => {
-            cameraButton.disabled = false;
-            addMessage('Simple face detection ready - camera enabled', 'system');
-        });
     </script>
 </body>
 </html>
