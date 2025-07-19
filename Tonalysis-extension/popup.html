@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Voice Transcriber</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎤 Voice Transcriber</h1>
+      <p class="subtitle">Real-time audio transcription</p>
+    </div>
+    
+    <div class="controls">
+      <button id="startBtn" class="btn btn-start">
+        <span class="btn-icon">🎙️</span>
+        Start Recording
+      </button>
+      <button id="stopBtn" class="btn btn-stop" disabled>
+        <span class="btn-icon">⏹️</span>
+        Stop Recording
+      </button>
+    </div>
+    
+    <div class="status">
+      <span id="statusText">Ready to transcribe</span>
+      <div id="statusIndicator" class="status-indicator"></div>
+    </div>
+    
+    <div class="transcription-container">
+      <div class="transcription-header">
+        <h3>Transcription</h3>
+        <div class="transcription-actions">
+          <button id="clearBtn" class="btn btn-small">Clear</button>
+          <button id="copyBtn" class="btn btn-small">Copy</button>
+          <button id="saveBtn" class="btn btn-small">Save</button>
+        </div>
+      </div>
+      <div id="transcriptionOutput" class="transcription-output">
+        <p class="placeholder">Your transcribed text will appear here...</p>
+      </div>
+    </div>
+
+   <!-- Feedback Section (Refactored) -->
+<div class="feedback-section" style="margin-top: 24px; text-align: center;">    
+  <div style="display: inline-block; max-width: 400px; width: 100%; margin-top: 16px;">
+    <label for="context" style="font-weight: 500; margin-bottom: 6px; display: block; text-align: center;">
+      Select Meeting Context:
+    </label>
+    <select id="context" class="context-select" 
+      style="
+        display: block;
+        margin: 0 auto 14px auto;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        font-size: 0.95em;
+        width: 60%;
+        max-width: 240px;
+      ">
+      <option value="professional">Professional Meeting</option>
+      <option value="club">Club Meeting</option>
+      <option value="casual">Casual Conversation</option>
+    </select>
+
+
+    <button id="getFeedback" class="btn btn-small" style="width: 100%; margin-bottom: 0.5em;">
+      <span id="feedbackBtnText">Get Feedback</span>
+      <span id="feedbackSpinner" style="display:none; margin-left: 8px; vertical-align: middle;">
+        <svg width="18" height="18" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" stroke="#555">
+          <g fill="none" fill-rule="evenodd">
+            <g transform="translate(1 1)" stroke-width="3">
+              <circle stroke-opacity=".3" cx="18" cy="18" r="18"/>
+              <path d="M36 18c0-9.94-8.06-18-18-18">
+                <animateTransform attributeName="transform" type="rotate" from="0 18 18" to="360 18 18" dur="0.8s" repeatCount="indefinite"/>
+              </path>
+            </g>
+          </g>
+        </svg>
+      </span>
+    </button>
+
+    <div id="feedbackCard" class="feedback-output" style="display:none; background: #f8f9fa; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); padding: 16px 14px; margin-top: 14px; transition: all 0.4s cubic-bezier(.4,0,.2,1); opacity: 0; transform: translateY(16px);">
+      <!-- Feedback content will be injected here -->
+    </div>
+  </div>
+
+    <!-- ⚙️ Settings -->
+    <div class="settings">
+      <details class="settings-panel">
+        <summary>Settings</summary>
+        <div class="setting-group">
+          <label for="languageSelect">Language:</label>
+          <select id="languageSelect">
+            <option value="en-US">English (US)</option>
+            <option value="en-GB">English (UK)</option>
+            <option value="es-ES">Spanish</option>
+            <option value="fr-FR">French</option>
+            <option value="de-DE">German</option>
+            <option value="it-IT">Italian</option>
+            <option value="pt-BR">Portuguese (Brazil)</option>
+            <option value="zh-CN">Chinese (Simplified)</option>
+            <option value="ja-JP">Japanese</option>
+            <option value="ko-KR">Korean</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>
+            <input type="checkbox" id="continuousMode" checked> 
+            Continuous mode
+          </label>
+        </div>
+        <div class="setting-group">
+          <label>
+            <input type="checkbox" id="punctuationMode" checked /> 
+            Auto punctuation
+          </label>
+        </div>
+      </details>
+    </div>
+    
+    <div class="footer">
+      <p class="version">v1.0</p>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
