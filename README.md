@@ -198,6 +198,30 @@ Modify engines in `main.py` if needed.
 
 This project is for educational and practice purposes. Please ensure compliance with API terms of service.
 
+## 🆘 Troubleshooting
+
+If you encounter issues:
+
+### **Connection Errors:**
+- See `TROUBLESHOOTING_CONNECTION_ISSUES.md` for detailed debugging steps
+- Verify your `.env` file contains valid API keys
+- Test with smaller video files first
+
+### **API Key Errors:**
+- Ensure API keys start with `tlk_` (Twelvelabs) and `AIza` (Google)
+- No quotes or extra spaces in the `.env` file
+- Regenerate keys if needed
+
+### **Common Issues:**
+1. **"Failed connection"** → Check API key and network connectivity
+2. **"Index.create() missing models"** → Fixed in latest version
+3. **"Invalid model_options"** → Fixed in latest version
+
+### **Getting Help:**
+- Check the troubleshooting guides in this repository
+- Test with diagnostic scripts provided
+- Contact Twelvelabs support if API issues persist
+
 ## Support
 
 For issues related to:

@@ -201,11 +201,23 @@ async def process_video_with_twelvelabs(client_id: str, session: Dict):
         
         # Upload video
         try:
-            task = twelvelabs_client.task.create(
-                index_id=index.id,
-                file=video_path,
-                language="en"
-            )
+            # Check if video file exists and get its size
+            if not os.path.exists(video_path):
+                print(f"Video file not found: {video_path}")
+                session["status"] = "error"
+                session["error"] = "Video file not found"
+                return
+            
+            file_size = os.path.getsize(video_path)
+            print(f"Uploading video file: {video_path} (size: {file_size} bytes)")
+            
+            # Try uploading with open file handle
+            with open(video_path, 'rb') as video_file:
+                task = twelvelabs_client.task.create(
+                    index_id=index.id,
+                    file=video_file,
+                    language="en"
+                )
             
             session["twelvelabs_task_id"] = task.id
             session["status"] = "processing_twelvelabs"
@@ -213,20 +225,39 @@ async def process_video_with_twelvelabs(client_id: str, session: Dict):
             print(f"Video uploaded to Twelvelabs. Task ID: {task.id}")
             
             # Wait for processing to complete
-            while True:
-                task_status = twelvelabs_client.task.retrieve(task.id)
-                
-                if task_status.status == "ready":
-                    session["twelvelabs_video_id"] = task_status.video_id
-                    session["status"] = "analyzing"
-                    break
-                elif task_status.status in ["failed", "error"]:
-                    session["status"] = "error"
-                    session["error"] = f"Twelvelabs processing failed: {task_status.status}"
-                    return
-                
-                # Wait before checking again
-                await asyncio.sleep(10)
+            max_attempts = 60  # Maximum number of status checks (10 minutes)
+            attempt = 0
+            
+            while attempt < max_attempts:
+                try:
+                    task_status = twelvelabs_client.task.retrieve(task.id)
+                    
+                    if task_status.status == "ready":
+                        session["twelvelabs_video_id"] = task_status.video_id
+                        session["status"] = "analyzing"
+                        break
+                    elif task_status.status in ["failed", "error"]:
+                        session["status"] = "error"
+                        session["error"] = f"Twelvelabs processing failed: {task_status.status}"
+                        return
+                    
+                    # Wait before checking again
+                    await asyncio.sleep(10)
+                    attempt += 1
+                    
+                except Exception as status_error:
+                    print(f"Error checking task status: {status_error}")
+                    if attempt >= 5:  # After 5 failed attempts, give up
+                        session["status"] = "error"
+                        session["error"] = f"Failed to check task status: {str(status_error)}"
+                        return
+                    await asyncio.sleep(5)
+                    attempt += 1
+            
+            if attempt >= max_attempts:
+                session["status"] = "error"
+                session["error"] = "Twelvelabs processing timed out"
+                return
             
             # Perform various analyses
             video_id = task_status.video_id
@@ -239,9 +270,22 @@ async def process_video_with_twelvelabs(client_id: str, session: Dict):
             print(f"Twelvelabs analysis completed for client {client_id}")
         
         except Exception as e:
-            print(f"Error uploading to Twelvelabs: {e}")
-            session["status"] = "error"
-            session["error"] = f"Upload error: {str(e)}"
+            error_msg = str(e)
+            print(f"Error uploading to Twelvelabs: {error_msg}")
+            
+            # Provide more specific error messages
+            if "Failed connection" in error_msg or "connection" in error_msg.lower():
+                session["status"] = "error"
+                session["error"] = "Connection error: Please check your internet connection and API configuration"
+            elif "api_key" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                session["status"] = "error"
+                session["error"] = "Authentication error: Please check your Twelvelabs API key"
+            elif "file" in error_msg.lower():
+                session["status"] = "error"
+                session["error"] = f"File upload error: {error_msg}"
+            else:
+                session["status"] = "error"
+                session["error"] = f"Upload error: {error_msg}"
     
     except Exception as e:
         print(f"Error in Twelvelabs processing: {e}")
