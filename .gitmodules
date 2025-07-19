@@ -1,0 +1,3 @@
+[submodule "Tonalysis-extension"]
+	path = Tonalysis-extension
+	url = https://github.com/PetarIsakovic/Tonalysis.git
