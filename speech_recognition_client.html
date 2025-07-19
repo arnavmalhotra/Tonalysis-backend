@@ -741,7 +741,10 @@
             <div class="recording-indicator" id="recordingIndicator" style="display: none;"></div>
             
             <!-- Stop Button -->
-            <button class="stop-btn" id="stopBtn" style="display: none;">⏹ Stop Practice</button>
+            <button class="stop-btn" id="stopBtn" style="display: none;">⏹ End Practice</button>
+            
+            <!-- Pause Button (optional - you can add this if you want pause functionality) -->
+            <button class="stop-btn" id="pauseBtn" style="display: none; right: 120px; background: #F59E0B;">⏸ Pause</button>
             
             <!-- Feedback Container -->
             <div class="feedback-container" id="feedbackContainer"></div>
@@ -911,6 +914,7 @@
         const countdownNumber = document.getElementById('countdownNumber');
         const startPracticeBtn = document.getElementById('startPracticeBtn');
         const stopBtn = document.getElementById('stopBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
         const recordingIndicator = document.getElementById('recordingIndicator');
         const progressTimer = document.getElementById('progressTimer');
         const timerCircle = document.getElementById('timerCircle');
@@ -1285,6 +1289,7 @@
             // Show recording elements
             recordingIndicator.style.display = 'block';
             stopBtn.style.display = 'block';
+            pauseBtn.style.display = 'block';  // Show pause button
             progressTimer.style.display = 'block';
             
             // Automatically start camera and body language analysis
@@ -1403,6 +1408,7 @@
             showState(idleState);
             recordingIndicator.style.display = 'none';
             stopBtn.style.display = 'none';
+            pauseBtn.style.display = 'none';  // Hide pause button
             progressTimer.style.display = 'none';
             edgeLighting.className = 'edge-lighting';
             
@@ -1572,7 +1578,8 @@
 
         // Event Listeners
         startPracticeBtn.onclick = startPractice;
-        stopBtn.onclick = pauseSession;
+        stopBtn.onclick = endSession;  // Fixed: Stop button should end session, not pause
+        pauseBtn.onclick = pauseSession;  // Pause button for pausing session
         resumeBtn.onclick = resumeSession;
         endSessionBtn.onclick = endSession;
         newSessionBtn.onclick = resetSession;
