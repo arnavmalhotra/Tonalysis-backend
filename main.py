@@ -75,7 +75,7 @@ async def analyze_with_gemini(transcript: str, client_id: str) -> str:
         filler_words = ["um", "uh", "like", "you know", "basically", "actually", "literally"]
         filler_count = sum(1 for word in words if word.lower() in filler_words)
         
-        prompt = f"""You are an experienced speech therapist providing personalized feedback. 
+        prompt = f"""You are an experienced speech and tone expert providing personalized feedback. Analyze the impression given by the speaker. Briefly explain why that is the impression given using real psychology, then give suggestions for improvement. 
 
 Current transcript (last 10 seconds, {word_count} words):
 "{transcript}"
@@ -132,7 +132,7 @@ async def analyze_body_language_with_gemini(body_data: List[Dict], client_id: st
         good_posture_ratio = sum(1 for p in postures if p == 'good') / len(postures) if postures else 0
         tired_ratio = sum(1 for f in fatigue_levels if f == 'tired') / len(fatigue_levels) if fatigue_levels else 0
         
-        prompt = f"""You are an expert body language coach providing personalized feedback for someone during a speech therapy session.
+        prompt = f"""You are an expert body language coach providing personalized feedback for someone. Analyze the impression given by them. Briefly explain why that is the impression given using real psychology, then give suggestions for improvement.
 
 Recent body language data (last 30 seconds):
 - Dominant emotion: {most_common_emotion}
