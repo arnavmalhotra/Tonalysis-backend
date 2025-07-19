@@ -3,8 +3,12 @@
 <head>
     <title>Live Speech Recognition Client</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .main-container { display: flex; gap: 20px; }
+        .left-panel { flex: 1; }
+        .right-panel { flex: 1; }
+        
+        #messages { border: 1px solid #ccc; height: 200px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
         button { padding: 10px 20px; margin: 5px; font-size: 16px; }
         .status { margin-bottom: 10px; font-weight: bold; }
         .transcription { color: green; }
@@ -49,22 +53,120 @@
             font-weight: bold;
             color: #1976d2;
         }
+        
+        /* Body Language Styles */
+        #videoSection {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            border: 1px solid #2196f3;
+        }
+        #videoSection h3 {
+            margin-top: 0;
+            color: #1565c0;
+        }
+        #cam {
+            display: block;
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        #overlay {
+            border: 2px solid #2196f3;
+            border-radius: 8px;
+            max-width: 100%;
+        }
+        #bodyLanguageSection {
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff3e0;
+            border-radius: 8px;
+            border: 1px solid #ff9800;
+        }
+        #bodyLanguageSection h3 {
+            margin-top: 0;
+            color: #ef6c00;
+        }
+        .body-language-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .metric {
+            display: inline-block;
+            margin: 5px 10px 5px 0;
+            padding: 5px 10px;
+            background: #f5f5f5;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        .metric.good { background: #c8e6c9; color: #2e7d32; }
+        .metric.warning { background: #ffecb3; color: #f57c00; }
+        .metric.alert { background: #ffcdd2; color: #d32f2f; }
     </style>
 </head>
 <body>
-    <h1>Live Speech Recognition (Frontend)</h1>
+    <h1>Live Speech & Body Language Therapy</h1>
     <div class="status" id="status">Disconnected</div>
-    <div id="currentTranscription">
-        <strong>Live transcription:</strong> <span id="timer"></span>
-        <div id="transcriptionText">Click "Start Recording" and speak...</div>
+    
+    <div class="main-container">
+        <div class="left-panel">
+            <div id="currentTranscription">
+                <strong>Live transcription:</strong> <span id="timer"></span>
+                <div id="transcriptionText">Click "Start Recording" and speak...</div>
+            </div>
+            
+            <div id="analysisSection">
+                <h3>Speech Therapist Analysis</h3>
+                <div id="analysisContent">Analysis will appear every 10 seconds while speaking...</div>
+            </div>
+            
+            <div id="messages"></div>
+            <button id="connectButton">Connect to Server</button>
+            <button id="recordButton">Start Recording</button>
+        </div>
+        
+        <div class="right-panel">
+            <div id="videoSection">
+                <h3>Video Analysis</h3>
+                <div style="position: relative; display: inline-block;">
+                    <video id="video" autoplay muted playsinline></video>
+                    <canvas id="canvas" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+                </div>
+                <button id="cameraButton">Start Camera</button>
+            </div>
+            
+            <div id="bodyLanguageSection">
+                <h3>Body Language Analysis</h3>
+                <div id="bodyLanguageContent">
+                    <div class="body-language-item">
+                        <strong>Current Status:</strong>
+                        <div id="currentMetrics">
+                            <span class="metric" id="emotionMetric">Emotion: Unknown</span>
+                            <span class="metric" id="postureMetric">Posture: Unknown</span>
+                            <span class="metric" id="fatigueMetric">Fatigue: Unknown</span>
+                        </div>
+                    </div>
+                    <div id="bodyLanguageFeedback">Body language feedback will appear here...</div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div id="analysisSection">
-        <h3>Speech Therapist Analysis</h3>
-        <div id="analysisContent">Analysis will appear every 10 seconds while speaking...</div>
-    </div>
-    <div id="messages"></div>
-    <button id="connectButton">Connect to Server</button>
-    <button id="recordButton">Start Recording</button>
+
+    <!-- State-of-the-art emotion detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script>
+        console.log('MediaPipe Face Mesh loaded for accurate emotion detection');
+    </script>
+    <script src="body_language.js"></script>
 
     <script>
         let ws = null;
@@ -72,14 +174,20 @@
         let isRecording = false;
         let analysisTimer = null;
         let secondsElapsed = 0;
+        let isCameraActive = false;
         const clientId = Math.floor(Math.random() * 1000);
         const messages = document.getElementById('messages');
         const connectButton = document.getElementById('connectButton');
         const recordButton = document.getElementById('recordButton');
+        const cameraButton = document.getElementById('cameraButton');
         const status = document.getElementById('status');
         const transcriptionText = document.getElementById('transcriptionText');
         const analysisContent = document.getElementById('analysisContent');
         const timer = document.getElementById('timer');
+        const bodyLanguageContent = document.getElementById('bodyLanguageFeedback');
+        const emotionMetric = document.getElementById('emotionMetric');
+        const postureMetric = document.getElementById('postureMetric');
+        const fatigueMetric = document.getElementById('fatigueMetric');
 
         // Check if browser supports speech recognition
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -113,6 +221,8 @@
                     // Don't show character count messages
                 } else if (data.type === 'analysis') {
                     displayAnalysis(data);
+                } else if (data.type === 'body_language_feedback') {
+                    displayBodyLanguageFeedback(data);
                 }
             };
 
@@ -185,6 +295,90 @@
             }
             
             addMessage(`Received analysis #${data.analysis_number || 1} from speech therapist`, 'system');
+        }
+
+        function displayBodyLanguageFeedback(data) {
+            const feedbackDiv = document.createElement('div');
+            feedbackDiv.className = 'body-language-item';
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.style.display = 'flex';
+            headerDiv.style.justifyContent = 'space-between';
+            headerDiv.style.marginBottom = '8px';
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'analysis-time';
+            timeDiv.textContent = new Date(data.timestamp).toLocaleTimeString();
+            
+            const numberDiv = document.createElement('div');
+            numberDiv.style.color = '#ef6c00';
+            numberDiv.style.fontWeight = 'bold';
+            numberDiv.textContent = `Body Language #${data.analysis_number || 1}`;
+            
+            headerDiv.appendChild(timeDiv);
+            headerDiv.appendChild(numberDiv);
+            
+            const textDiv = document.createElement('div');
+            textDiv.innerHTML = `<strong>Feedback:</strong> ${data.text}`;
+            
+            feedbackDiv.appendChild(headerDiv);
+            feedbackDiv.appendChild(textDiv);
+            
+            // Keep history of feedback
+            if (!bodyLanguageContent.querySelector('.body-language-item')) {
+                bodyLanguageContent.innerHTML = '';
+            }
+            
+            // Insert new feedback at the top (after current metrics)
+            const currentMetricsDiv = bodyLanguageContent.querySelector('.body-language-item');
+            if (currentMetricsDiv && currentMetricsDiv.nextSibling) {
+                bodyLanguageContent.insertBefore(feedbackDiv, currentMetricsDiv.nextSibling);
+            } else {
+                bodyLanguageContent.appendChild(feedbackDiv);
+            }
+            
+            // Keep only last 2 feedback items
+            const feedbacks = bodyLanguageContent.querySelectorAll('.body-language-item');
+            if (feedbacks.length > 3) { // Current metrics + 2 feedback items
+                feedbacks[feedbacks.length - 1].remove();
+            }
+            
+            addMessage(`Received body language analysis #${data.analysis_number || 1}`, 'system');
+        }
+
+        function updateBodyLanguageMetrics(emotion, posture, fatigue) {
+            // Update emotion metric
+            emotionMetric.textContent = `Emotion: ${emotion}`;
+            emotionMetric.className = 'metric';
+            if (['happy', 'surprised'].includes(emotion)) {
+                emotionMetric.classList.add('good');
+            } else if (['sad', 'angry', 'fearful'].includes(emotion)) {
+                emotionMetric.classList.add('alert');
+            } else {
+                emotionMetric.classList.add('warning');
+            }
+
+            // Update posture metric
+            postureMetric.textContent = `Posture: ${posture.label}`;
+            postureMetric.className = 'metric';
+            if (posture.label === 'good') {
+                postureMetric.classList.add('good');
+            } else if (posture.label === 'poor') {
+                postureMetric.classList.add('alert');
+            } else {
+                postureMetric.classList.add('warning');
+            }
+
+            // Update fatigue metric
+            fatigueMetric.textContent = `Energy: ${fatigue.label}`;
+            fatigueMetric.className = 'metric';
+            if (fatigue.label === 'alert') {
+                fatigueMetric.classList.add('good');
+            } else if (fatigue.label === 'tired') {
+                fatigueMetric.classList.add('alert');
+            } else {
+                fatigueMetric.classList.add('warning');
+            }
         }
 
         function updateTimer() {
@@ -308,6 +502,52 @@
                 startRecording();
             }
         };
+
+        cameraButton.onclick = async () => {
+            if (isCameraActive) {
+                // Stop camera
+                const camElement = document.getElementById('cam');
+                const stream = camElement ? camElement.srcObject : null;
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    camElement.srcObject = null;
+                }
+                isCameraActive = false;
+                cameraButton.textContent = 'Start Camera';
+                addMessage('Camera stopped', 'system');
+            } else {
+                // Start camera and body language analysis
+                addMessage('Starting camera and body language analysis...', 'system');
+                try {
+                    const success = await window.bodyLanguage.start();
+                    if (success) {
+                        // Set WebSocket reference for body language module
+                        if (ws) {
+                            window.bodyLanguage.setWebSocket(ws);
+                        }
+                        isCameraActive = true;
+                        cameraButton.textContent = 'Stop Camera';
+                        addMessage('Camera and body language analysis started', 'system');
+                    } else {
+                        addMessage('Failed to start camera or load ML models', 'error');
+                    }
+                } catch (error) {
+                    addMessage(`Camera error: ${error.message}`, 'error');
+                }
+            }
+        };
+
+        // Listen for body language data updates to update UI
+        window.addEventListener('bodyLanguageUpdate', (event) => {
+            const { emotion, posture, fatigue } = event.detail;
+            updateBodyLanguageMetrics(emotion, posture, fatigue);
+        });
+
+        // Enable camera button immediately since we use simple detection
+        window.addEventListener('load', () => {
+            cameraButton.disabled = false;
+            addMessage('Simple face detection ready - camera enabled', 'system');
+        });
     </script>
 </body>
 </html>
