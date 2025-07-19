@@ -11,6 +11,8 @@
     let emotionHistory = [];
     let faceMesh = null;
     let camera = null;
+    let lastLandmarkUpdate = 0;
+    let meshOpacity = 0.6;
     
     // Initialize MediaPipe Face Mesh
     async function initializeFaceMesh() {
@@ -45,11 +47,17 @@
         if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
             console.log('No face detected');
             updateEmotionUI({ emotion: 'neutral', confidence: 0.5 }, null, null);
+            // Fade out mesh when no face detected
+            meshOpacity = Math.max(0.1, meshOpacity * 0.95);
             return;
         }
         
         const landmarks = results.multiFaceLandmarks[0];
         const emotion = analyzeEmotionFromLandmarks(landmarks);
+        
+        // Update landmark timestamp and opacity
+        lastLandmarkUpdate = Date.now();
+        meshOpacity = Math.min(0.6, meshOpacity + 0.1);
         
         // Draw face mesh
         drawFaceMesh(results.multiFaceLandmarks[0]);
@@ -236,10 +244,19 @@
     function drawFaceMesh(landmarks) {
         if (!canvasContext || !canvasElement) return;
         
+        // Check if landmarks are stale (no updates for 3 seconds)
+        const timeSinceUpdate = Date.now() - lastLandmarkUpdate;
+        if (timeSinceUpdate > 3000) {
+            meshOpacity = Math.max(0.25, meshOpacity * 0.98);
+        }
+        
         canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
         
-        // Draw face mesh connections
-        canvasContext.strokeStyle = '#00ff00';
+        // Set global alpha for fade effect
+        canvasContext.globalAlpha = meshOpacity;
+        
+        // Draw face mesh connections with subtle styling
+        canvasContext.strokeStyle = 'rgba(0, 255, 0, 0.6)';
         canvasContext.lineWidth = 1;
         
         // Draw key facial features
@@ -269,15 +286,18 @@
             canvasContext.stroke();
         });
         
-        // Draw landmark points
-        canvasContext.fillStyle = '#ff0000';
+        // Draw landmark points with subtle styling
+        canvasContext.fillStyle = 'rgba(255, 0, 0, 0.55)';
         landmarks.forEach(landmark => {
             const x = landmark.x * canvasElement.width;
             const y = landmark.y * canvasElement.height;
             canvasContext.beginPath();
-            canvasContext.arc(x, y, 1, 0, 2 * Math.PI);
+            canvasContext.arc(x, y, 1.5, 0, 2 * Math.PI);
             canvasContext.fill();
         });
+        
+        // Reset global alpha
+        canvasContext.globalAlpha = 1.0;
     }
     
     // Initialize camera
@@ -293,9 +313,16 @@
             
             canvasContext = canvasElement.getContext('2d');
             
-            // Set canvas size
-            canvasElement.width = 640;
-            canvasElement.height = 480;
+            // Set canvas size to match video container
+            const videoContainer = document.getElementById('videoContainer');
+            if (videoContainer) {
+                canvasElement.width = videoContainer.offsetWidth;
+                canvasElement.height = videoContainer.offsetHeight;
+            } else {
+                // Fallback to window size
+                canvasElement.width = window.innerWidth;
+                canvasElement.height = window.innerHeight;
+            }
             
             // Initialize MediaPipe camera
             camera = new Camera(videoElement, {
