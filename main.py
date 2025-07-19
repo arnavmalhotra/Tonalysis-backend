@@ -1,3 +1,7 @@
+import sys
+# Add user site-packages to Python path to ensure packages are found
+sys.path.insert(0, '/home/ubuntu/.local/lib/python3.13/site-packages')
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -17,8 +21,10 @@ from dotenv import load_dotenv
 try:
     from twelvelabs import TwelveLabs
     TWELVELABS_AVAILABLE = True
-except ImportError:
-    print("Warning: Twelvelabs SDK not installed. Install with: pip install twelvelabs")
+    print("✅ Twelvelabs SDK imported successfully")
+except ImportError as e:
+    print(f"❌ Warning: Twelvelabs SDK not available: {e}")
+    print("   Install with: pip3 install --break-system-packages twelvelabs")
     TWELVELABS_AVAILABLE = False
 
 # Load environment variables
@@ -55,12 +61,24 @@ if TWELVELABS_AVAILABLE:
     try:
         twelvelabs_api_key = os.getenv("TWELVELABS_API_KEY")
         if twelvelabs_api_key:
-            twelvelabs_client = TwelveLabs(api_key=twelvelabs_api_key)
-            print("Twelvelabs client initialized successfully")
+            # Check if it's a placeholder key
+            if twelvelabs_api_key.startswith('your_') or twelvelabs_api_key == 'your_twelvelabs_api_key_here':
+                print("❌ Warning: TWELVELABS_API_KEY appears to be a placeholder!")
+                print("   Please replace the placeholder with your actual API key in the .env file")
+                print(f"   Current value: {twelvelabs_api_key[:15]}...")
+            else:
+                twelvelabs_client = TwelveLabs(api_key=twelvelabs_api_key)
+                print(f"✅ Twelvelabs client initialized successfully with key: {twelvelabs_api_key[:10]}...")
         else:
-            print("Warning: TWELVELABS_API_KEY not found in environment variables")
+            print("❌ Warning: TWELVELABS_API_KEY not found in environment variables")
+            print("   Make sure your .env file contains: TWELVELABS_API_KEY=your_actual_key_here")
     except Exception as e:
-        print(f"Failed to initialize Twelvelabs client: {e}")
+        print(f"❌ Failed to initialize Twelvelabs client: {e}")
+        print(f"   Error type: {type(e).__name__}")
+        if "connection" in str(e).lower():
+            print("   💡 This looks like a network connectivity issue")
+        elif "unauthorized" in str(e).lower():
+            print("   💡 This looks like an API key authentication issue")
 
 # Thread pool for async operations
 executor = ThreadPoolExecutor(max_workers=4)
