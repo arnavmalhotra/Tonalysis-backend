@@ -18,7 +18,7 @@ try:
     from twelvelabs import TwelveLabs
     TWELVELABS_AVAILABLE = True
 except ImportError:
-    print("Warning: Twelvelabs SDK not installed. Install with: pip install twelvelabs-python")
+    print("Warning: Twelvelabs SDK not installed. Install with: pip install twelvelabs")
     TWELVELABS_AVAILABLE = False
 
 # Load environment variables

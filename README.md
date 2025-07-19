@@ -138,7 +138,7 @@ The integration with Twelvelabs provides:
 
 1. **Twelvelabs SDK Installation Error**
    ```bash
-   pip install twelvelabs-python==0.2.23
+   pip install twelvelabs==0.4.10
    ```
 
 2. **Video Recording Not Working**

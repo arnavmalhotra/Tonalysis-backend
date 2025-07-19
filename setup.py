@@ -54,7 +54,7 @@ def install_dependencies():
         "google-genai==1.26.0",
         "python-dotenv==1.1.1",
         "requests==2.32.4",
-        "twelvelabs-python==0.2.23"
+        "twelvelabs==0.4.10"
     ]
     
     failed_packages = []
@@ -121,7 +121,7 @@ def test_imports():
         print("✅ Twelvelabs SDK imported successfully")
     except ImportError:
         print("❌ Twelvelabs SDK import failed - you may need to install it manually:")
-        print("   pip install twelvelabs-python==0.2.23")
+        print("   pip install twelvelabs==0.4.10")
         return False
     
     try:

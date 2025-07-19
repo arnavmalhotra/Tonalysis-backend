@@ -4,4 +4,4 @@ websockets==15.0.1
 google-genai==1.26.0
 python-dotenv==1.1.1
 requests==2.32.4
-twelvelabs-python==0.2.23 
+twelvelabs==0.4.10 
