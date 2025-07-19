@@ -29,8 +29,8 @@ A real-time speech therapy platform that analyzes your voice, body language, and
 
 ### 1. Clone the Repository
 ```bash
-git clone <your-repo-url>
-cd Tonalysis-backend
+git clone https://github.com/arnavmalhotra/Tonalysis-backend.git
+cd Tonalysis
 ```
 
 ### 2. Set Up Python Environment
@@ -190,9 +190,9 @@ A powerful Chrome extension that provides real-time audio transcription using th
 
 ---
 
-## 🧠 AI Feedback with Google Gemini (Optional)
+## 🧠 AI Feedback with Google Gemini
 
-You can optionally connect the extension to Google Gemini to receive intelligent feedback on your speaking style, clarity, tone, and pacing.
+You can connect the extension to Google Gemini to receive intelligent feedback on your speaking style, clarity, tone, and pacing.
 
 ### 🔍 What AI Feedback Includes
 
