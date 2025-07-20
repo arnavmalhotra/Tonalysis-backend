@@ -26,6 +26,7 @@ A real-time tone analysis platform that analyzes your voice, body language, and 
 - Google Gemini API key
 - Modern web browser (Chrome, Edge, or Safari recommended)
 - Webcam for body language analysis
+- Microphone for speech analysis
 
 ## Setup Instructions
 
