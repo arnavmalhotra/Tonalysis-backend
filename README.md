@@ -25,6 +25,60 @@ A real-time speech therapy platform that analyzes your voice, body language, and
 - Modern web browser (Chrome, Edge, or Safari recommended)
 - Webcam for body language analysis
 
+## 🔒 Security & API Key Management
+
+### ⚠️ IMPORTANT: API Key Security
+
+**Never commit API keys or sensitive credentials to version control!**
+
+This repository has been cleaned to remove previously committed API keys. To ensure your API keys remain secure:
+
+1. **Use Environment Variables**: Store API keys in `.env` files (never committed)
+2. **Follow the Setup Guide**: Use the provided `.env.example` template
+3. **Check `.gitignore`**: Ensure `.env` files are properly ignored
+4. **Rotate Keys Regularly**: If you suspect keys were exposed, regenerate them immediately
+
+### 🔧 Proper Setup
+
+1. **Copy the example file**:
+   ```bash
+   cp Tonalysis/.env.example Tonalysis/.env
+   ```
+
+2. **Add your actual API keys** to `Tonalysis/.env`:
+   ```
+   GOOGLE_API_KEY=your_actual_gemini_api_key_here
+   TWELVELABS_API_KEY=your_actual_twelvelabs_api_key_here
+   ```
+
+3. **Verify `.env` is ignored**:
+   ```bash
+   git status
+   # The .env file should NOT appear in the output
+   ```
+
+### 🚨 If You Accidentally Commit API Keys
+
+1. **Immediately rotate/regenerate** your API keys
+2. **Remove from git history** using:
+   ```bash
+   git filter-branch --force --index-filter 'git rm --cached --ignore-unmatch Tonalysis/.env' --prune-empty --tag-name-filter cat -- --all
+   ```
+3. **Force push** to remote repository:
+   ```bash
+   git push origin --force --all
+   ```
+4. **Notify collaborators** to update their local repositories
+
+### 📋 Security Checklist
+
+- [ ] `.env` file is in `.gitignore`
+- [ ] API keys are stored in environment variables
+- [ ] No hardcoded credentials in source code
+- [ ] API keys are rotated regularly
+- [ ] Repository is private (if containing sensitive data)
+- [ ] Collaborators are aware of security practices
+
 ## Setup Instructions
 
 ### 1. Clone the Repository
