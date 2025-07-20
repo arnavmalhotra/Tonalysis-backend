@@ -8,7 +8,7 @@ A unified AI-powered communication toolkit featuring:
 ---
 # Tonalysis - Tone & Body Language Analysis and Feedback
 
-A real-time speech therapy platform that analyzes your voice, body language, and presentation skills using AI-powered feedback.
+A real-time tone analysis platform that analyzes your voice, body language, and presentation skills using AI-powered feedback.
 
 ## Features
 
