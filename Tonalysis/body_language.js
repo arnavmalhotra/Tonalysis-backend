@@ -387,6 +387,11 @@
                 fatigueElement.classList.add('warning');
             }
         }
+        
+        // Call the HTML file's updateBodyLanguageMetrics function if it exists
+        if (typeof window.updateBodyLanguageMetrics === 'function') {
+            window.updateBodyLanguageMetrics(emotion.emotion, postureData, fatigueData);
+        }
     }
     
     // Analyze posture based on facial features and head position
