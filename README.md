@@ -13,6 +13,8 @@ A real-time tone analysis platform that analyzes your voice, body language, and 
 ## Features
 
 - **Real-time Speech Analysis**: Live transcription with AI-powered feedback
+
+
 - **Body Language Detection**: Facial expression and posture analysis using MediaPipe
 - **Interactive Practice Sessions**: Guided practice with countdown and feedback
 - **Performance Tracking**: Visual progress indicators and session summaries
