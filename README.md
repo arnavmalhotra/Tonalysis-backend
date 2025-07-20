@@ -2,11 +2,11 @@
 
 A unified AI-powered communication toolkit featuring:
 
-1. **Tonalysis** — A real-time speech & body language therapy platform  
-2. **Voice Transcriber Extension** — A Chrome extension for real-time transcription
+1. **Tonalysis** — A real-time tone & body language analysis and feedback platform for effective communication  
+2. **Tonalysis Lite Chrome Extension** — A Chrome extension to use the speech analysis features during virtual meetings
 
 ---
-# Tonalysis - Speech & Body Language Therapy Platform
+# Tonalysis - Tone & Body Language Analysis and Feedback
 
 A real-time speech therapy platform that analyzes your voice, body language, and presentation skills using AI-powered feedback.
 
