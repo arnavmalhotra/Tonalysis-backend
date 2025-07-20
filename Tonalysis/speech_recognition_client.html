@@ -889,6 +889,23 @@
         const clientId = Math.floor(Math.random() * 1000);
         let bodyLanguageInterval = null;
         
+        // Score calculation variables
+        let speechMetrics = {
+            total_words: 0,
+            total_fillers: 0,
+            analyses_count: 0
+        };
+        let bodyLanguageHistory = [];
+        let emotionHistory = [];
+        
+        // Feedback cooldown system
+        let lastFeedbackTime = 0;
+        let feedbackCooldown = 8000; // 8 seconds between feedback
+        let lastEmotionFeedback = '';
+        let lastPostureFeedback = '';
+        let lastFatigueFeedback = '';
+        let isSessionActive = false; // Track if session is currently active
+        
         // Video recording variables
         let mediaRecorder = null;
         let recordedChunks = [];
@@ -974,6 +991,27 @@
             sessionStartTime = Date.now();
             sessionDuration = 0;
             performanceScore = 0;
+            isSessionActive = true; // Mark session as active
+            
+            // Reset score calculation variables for new session
+            speechMetrics = {
+                total_words: 0,
+                total_fillers: 0,
+                analyses_count: 0
+            };
+            bodyLanguageHistory = [];
+            emotionHistory = [];
+            
+            // Reset feedback cooldown variables for new session
+            lastFeedbackTime = 0;
+            lastEmotionFeedback = '';
+            lastPostureFeedback = '';
+            lastFatigueFeedback = '';
+            
+            // Reset score display to neutral
+            document.getElementById('voiceScore').textContent = '50%';
+            document.getElementById('bodyScore').textContent = '50%';
+            document.getElementById('energyScore').textContent = '50%';
             
             // Hide all screen states to show the video with overlay elements
             document.querySelectorAll('.screen-state, .paused-overlay, .summary-overlay').forEach(el => {
@@ -1099,7 +1137,10 @@
                 clearInterval(window.sessionTimer);
             }
             
-            // Calculate scores
+            // Mark session as inactive
+            isSessionActive = false;
+            
+            // Calculate final scores (this will be the last update)
             calculateSessionScores();
             
             // Show summary
@@ -1107,14 +1148,82 @@
         }
 
         function calculateSessionScores() {
-            // Calculate scores based on feedback and metrics
-            const voiceScore = Math.min(100, Math.max(0, 85 + (performanceScore * 5)));
-            const bodyScore = Math.min(100, Math.max(0, 92 + (performanceScore * 3)));
-            const energyScore = Math.min(100, Math.max(0, 78 + (performanceScore * 4)));
+            // Only calculate scores if session is active
+            if (!isSessionActive) {
+                return;
+            }
             
-            document.getElementById('voiceScore').textContent = `${Math.round(voiceScore)}%`;
-            document.getElementById('bodyScore').textContent = `${Math.round(bodyScore)}%`;
-            document.getElementById('energyScore').textContent = `${Math.round(energyScore)}%`;
+            // Calculate realistic scores based on actual metrics and feedback
+            let voiceScore = 50; // Start with neutral base
+            let bodyScore = 50;
+            let energyScore = 50;
+            
+            // Voice score factors
+            const totalWords = speechMetrics.total_words || 0;
+            const totalFillers = speechMetrics.total_fillers || 0;
+            const analysesCount = speechMetrics.analyses_count || 0;
+            
+            // Voice score calculation
+            if (totalWords > 0) {
+                // Clarity factor (fewer fillers = better)
+                const fillerRatio = totalFillers / totalWords;
+                const clarityBonus = Math.max(0, 30 - (fillerRatio * 100));
+                
+                // Engagement factor (more words = better engagement)
+                const engagementBonus = Math.min(20, totalWords / 10);
+                
+                // Consistency factor (more analyses = more consistent)
+                const consistencyBonus = Math.min(10, analysesCount * 2);
+                
+                voiceScore = 40 + clarityBonus + engagementBonus + consistencyBonus;
+            }
+            
+            // Body score factors
+            const bodyAnalyses = bodyLanguageHistory.length || 0;
+            const recentEmotions = emotionHistory.slice(-5); // Last 5 emotions
+            
+            if (recentEmotions.length > 0) {
+                // Posture and presence factor
+                const goodPostureCount = recentEmotions.filter(e => e.posture === 'good').length;
+                const postureBonus = (goodPostureCount / recentEmotions.length) * 25;
+                
+                // Emotional engagement factor
+                const positiveEmotions = recentEmotions.filter(e => 
+                    e.emotion === 'happy' || e.emotion === 'engaged'
+                ).length;
+                const emotionBonus = (positiveEmotions / recentEmotions.length) * 15;
+                
+                // Consistency factor
+                const consistencyBonus = Math.min(10, bodyAnalyses * 2);
+                
+                bodyScore = 35 + postureBonus + emotionBonus + consistencyBonus;
+            }
+            
+            // Energy score factors
+            const fatigueLevels = recentEmotions.filter(e => e.fatigue).map(e => e.fatigue);
+            const alertCount = fatigueLevels.filter(f => f === 'alert').length;
+            
+            if (fatigueLevels.length > 0) {
+                // Alertness factor
+                const alertnessBonus = (alertCount / fatigueLevels.length) * 30;
+                
+                // Session engagement factor
+                const sessionEngagement = Math.min(15, sessionDuration / 10);
+                
+                // Performance factor
+                const performanceBonus = Math.min(10, Math.max(-10, performanceScore * 2));
+                
+                energyScore = 40 + alertnessBonus + sessionEngagement + performanceBonus;
+            }
+            
+            // Apply realistic bounds and round
+            voiceScore = Math.min(95, Math.max(25, Math.round(voiceScore)));
+            bodyScore = Math.min(95, Math.max(25, Math.round(bodyScore)));
+            energyScore = Math.min(95, Math.max(25, Math.round(energyScore)));
+            
+            document.getElementById('voiceScore').textContent = `${voiceScore}%`;
+            document.getElementById('bodyScore').textContent = `${bodyScore}%`;
+            document.getElementById('energyScore').textContent = `${energyScore}%`;
         }
 
         function resetSession() {
@@ -1154,20 +1263,55 @@
             isPaused = false;
             sessionDuration = 0;
             performanceScore = 0;
+            isSessionActive = false; // Mark session as inactive
+            
+            // Reset score calculation variables
+            speechMetrics = {
+                total_words: 0,
+                total_fillers: 0,
+                analyses_count: 0
+            };
+            bodyLanguageHistory = [];
+            emotionHistory = [];
+            
+            // Reset feedback cooldown variables
+            lastFeedbackTime = 0;
+            lastEmotionFeedback = '';
+            lastPostureFeedback = '';
+            lastFatigueFeedback = '';
+            
+            // Reset score display
+            document.getElementById('voiceScore').textContent = '50%';
+            document.getElementById('bodyScore').textContent = '50%';
+            document.getElementById('energyScore').textContent = '50%';
         }
 
         // Feedback System
         function showFeedback(message, type = 'info', duration = 6000) {
+            const now = Date.now();
+            
+            // Check cooldown - don't show feedback too frequently
+            if (now - lastFeedbackTime < feedbackCooldown) {
+                return;
+            }
+            
+            // Don't repeat the same feedback message
+            const recentFeedback = feedbackQueue.slice(-3);
+            if (recentFeedback.some(f => f.message === message)) {
+                return;
+            }
+            
             const feedback = {
                 message,
                 type,
-                timestamp: Date.now()
+                timestamp: now
             };
             
             feedbackQueue.push(feedback);
+            lastFeedbackTime = now;
             
-            // Keep only last 10 feedback items
-            if (feedbackQueue.length > 10) {
+            // Keep only last 8 feedback items (reduced from 10)
+            if (feedbackQueue.length > 8) {
                 feedbackQueue.shift();
             }
             
@@ -1334,6 +1478,21 @@
             // Start new timer for next analysis
             startAnalysisTimer();
             
+            // Update speech metrics
+            const transcript = data.transcript_analyzed || '';
+            const words = transcript.split(' ').filter(word => word.trim().length > 0);
+            const wordCount = words.length;
+            
+            // Count filler words
+            const fillerWords = ['um', 'uh', 'like', 'you know', 'basically', 'actually', 'literally'];
+            const fillerCount = words.filter(word => 
+                fillerWords.includes(word.toLowerCase())
+            ).length;
+            
+            speechMetrics.total_words += wordCount;
+            speechMetrics.total_fillers += fillerCount;
+            speechMetrics.analyses_count += 1;
+            
             const analysisDiv = document.createElement('div');
             analysisDiv.className = 'analysis-item';
             
@@ -1357,45 +1516,76 @@
             
             const metaDiv = document.createElement('div');
             metaDiv.className = 'analysis-meta';
-            const wordCount = data.transcript_analyzed.split(' ').length;
-            metaDiv.textContent = `${wordCount} words analyzed`;
+            metaDiv.textContent = `${wordCount} words analyzed (${fillerCount} fillers)`;
             
             analysisDiv.appendChild(headerDiv);
             analysisDiv.appendChild(textDiv);
             analysisDiv.appendChild(metaDiv);
             
             // Replace old analysis with new one
-                analysisContent.innerHTML = '';
+            analysisContent.innerHTML = '';
             analysisContent.appendChild(analysisDiv);
             
-
+            // Update scores (only if session is active)
+            if (isSessionActive) {
+                calculateSessionScores();
+            }
             
-            // Show feedback based on analysis content
+            // Show feedback based on analysis content (less frequently)
             const analysisText = data.text.toLowerCase();
-            if (analysisText.includes('great') || analysisText.includes('good') || analysisText.includes('improved')) {
-                showFeedback('Great progress! Keep it up!', 'positive');
-            } else if (analysisText.includes('slow') || analysisText.includes('pace')) {
-                showFeedback('Try slowing your pace by ~10%', 'warning');
-            } else if (analysisText.includes('volume') || analysisText.includes('speak')) {
-                showFeedback('Speak a bit louder', 'warning');
-            } else if (analysisText.includes('filler') || analysisText.includes('um')) {
-                showFeedback('Try reducing filler words', 'warning');
+            const now = Date.now();
+            const timeSinceLastFeedback = now - lastFeedbackTime;
+            
+            // Only show feedback every 12 seconds
+            if (timeSinceLastFeedback > 12000) {
+                if (analysisText.includes('great') || analysisText.includes('good') || analysisText.includes('improved')) {
+                    showFeedback('Great progress! Keep it up!', 'positive', 4000);
+                } else if (analysisText.includes('slow') || analysisText.includes('pace')) {
+                    showFeedback('Try slowing your pace by ~10%', 'warning', 4000);
+                } else if (analysisText.includes('volume') || analysisText.includes('speak')) {
+                    showFeedback('Speak a bit louder', 'warning', 4000);
+                } else if (analysisText.includes('filler') || analysisText.includes('um')) {
+                    showFeedback('Try reducing filler words', 'warning', 4000);
+                }
             }
         }
 
         function displayBodyLanguageFeedback(data) {
             bodyLanguageFeedback.textContent = data.text;
             
-            // Show feedback based on body language
+            // Store body language feedback in history
+            bodyLanguageHistory.push({
+                text: data.text,
+                timestamp: data.timestamp,
+                analysis_number: data.analysis_number
+            });
+            
+            // Keep only last 10 body language analyses
+            if (bodyLanguageHistory.length > 10) {
+                bodyLanguageHistory.shift();
+            }
+            
+            // Update scores (only if session is active)
+            if (isSessionActive) {
+                calculateSessionScores();
+            }
+            
+            // Show feedback based on body language (less frequently)
             const feedbackText = data.text.toLowerCase();
-            if (feedbackText.includes('good') || feedbackText.includes('excellent') || feedbackText.includes('great')) {
-                showFeedback('Excellent body language!', 'positive');
-            } else if (feedbackText.includes('posture') || feedbackText.includes('straight')) {
-                showFeedback('Sit up straight for better presence', 'warning');
-            } else if (feedbackText.includes('eye contact')) {
-                showFeedback('Hold eye contact with the camera', 'warning');
-            } else if (feedbackText.includes('energy') || feedbackText.includes('tired')) {
-                showFeedback('Try to show more energy', 'warning');
+            const now = Date.now();
+            const timeSinceLastFeedback = now - lastFeedbackTime;
+            
+            // Only show feedback every 15 seconds
+            if (timeSinceLastFeedback > 15000) {
+                if (feedbackText.includes('good') || feedbackText.includes('excellent') || feedbackText.includes('great')) {
+                    showFeedback('Excellent body language!', 'positive', 4000);
+                } else if (feedbackText.includes('posture') || feedbackText.includes('straight')) {
+                    showFeedback('Sit up straight for better presence', 'warning', 4000);
+                } else if (feedbackText.includes('eye contact')) {
+                    showFeedback('Hold eye contact with the camera', 'warning', 4000);
+                } else if (feedbackText.includes('energy') || feedbackText.includes('tired')) {
+                    showFeedback('Try to show more energy', 'warning', 4000);
+                }
             }
         }
 
@@ -1418,15 +1608,45 @@
             fatigueMetric.innerHTML = `<span class="icon">${fatigueIcon}</span><span>${fatigue.label}</span>`;
             fatigueMetric.className = `metric-item ${fatigueClass}`;
             
-            // Show real-time feedback based on metrics
-            if (emotion === 'happy') {
-                showFeedback('Great energy! Keep smiling!', 'positive', 4000);
-            } else if (posture.label === 'poor') {
-                showFeedback('Adjust your posture', 'warning', 4000);
-            } else if (fatigue.label === 'tired') {
-                showFeedback('Show more enthusiasm', 'warning', 4000);
+            // Store emotion data in history
+            emotionHistory.push({
+                emotion: emotion,
+                posture: posture.label,
+                fatigue: fatigue.label,
+                timestamp: Date.now()
+            });
+            
+            // Keep only last 20 emotion data points
+            if (emotionHistory.length > 20) {
+                emotionHistory.shift();
+            }
+            
+            // Update scores periodically (every 10 emotion updates instead of 5) - only if session is active
+            if (emotionHistory.length % 10 === 0 && isSessionActive) {
+                calculateSessionScores();
+            }
+            
+            // Show feedback only occasionally and for significant changes
+            const now = Date.now();
+            const timeSinceLastFeedback = now - lastFeedbackTime;
+            
+            // Only show feedback every 15 seconds and for notable changes
+            if (timeSinceLastFeedback > 15000) {
+                if (emotion === 'happy' && lastEmotionFeedback !== 'happy') {
+                    showFeedback('Great energy! Keep smiling!', 'positive', 3000);
+                    lastEmotionFeedback = 'happy';
+                } else if (posture.label === 'poor' && lastPostureFeedback !== 'poor') {
+                    showFeedback('Adjust your posture', 'warning', 3000);
+                    lastPostureFeedback = 'poor';
+                } else if (fatigue.label === 'tired' && lastFatigueFeedback !== 'tired') {
+                    showFeedback('Show more enthusiasm', 'warning', 3000);
+                    lastFatigueFeedback = 'tired';
+                }
             }
         }
+        
+        // Make function available globally for body language module
+        window.updateBodyLanguageMetrics = updateBodyLanguageMetrics;
 
         function getEmotionIcon(emotion) {
             const icons = {
