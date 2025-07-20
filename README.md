@@ -1,9 +1,9 @@
-# 🧠 Tonalysis Suite
+# Tonalysis Suite
 
 A unified AI-powered communication toolkit featuring:
 
-1. **🎤 Tonalysis** — A real-time speech & body language therapy platform  
-2. **🧩 Voice Transcriber Extension** — A Chrome extension for real-time transcription
+1. **Tonalysis** — A real-time speech & body language therapy platform  
+2. **Voice Transcriber Extension** — A Chrome extension for real-time transcription
 
 ---
 # Tonalysis - Speech & Body Language Therapy Platform
@@ -12,11 +12,11 @@ A real-time speech therapy platform that analyzes your voice, body language, and
 
 ## Features
 
-- 🎤 **Real-time Speech Analysis**: Live transcription with AI-powered feedback
-- 👤 **Body Language Detection**: Facial expression and posture analysis using MediaPipe
-- 🎯 **Interactive Practice Sessions**: Guided practice with countdown and feedback
-- 📊 **Performance Tracking**: Visual progress indicators and session summaries
-- 💡 **Smart Feedback**: Contextual tips for improvement
+- **Real-time Speech Analysis**: Live transcription with AI-powered feedback
+- **Body Language Detection**: Facial expression and posture analysis using MediaPipe
+- **Interactive Practice Sessions**: Guided practice with countdown and feedback
+- **Performance Tracking**: Visual progress indicators and session summaries
+- **Smart Feedback**: Contextual tips for improvement
 
 ## Prerequisites
 
@@ -80,7 +80,7 @@ The server will start on `http://localhost:8000`
 ### 3. Start a Practice Session
 1. Click "Connect to Server" to establish WebSocket connection
 2. Click "Start Camera" to enable body language analysis
-3. Click "🎤 Start Practice" to begin your session
+3. Click "Start Practice" to begin your session
 4. Follow the countdown and start speaking!
 
 ## Usage Guide
@@ -93,10 +93,10 @@ The server will start on `http://localhost:8000`
 5. **Summary**: View your performance scores and tips
 
 ### Feedback Types
-- **👍 Positive**: Great progress and improvements
-- **⚠️ Warning**: Areas for improvement
-- **⛔ Critical**: Important issues to address
-- **💡 Info**: General tips and guidance
+- **Positive**: Great progress and improvements
+- **Warning**: Areas for improvement
+- **Critical**: Important issues to address
+- **Info**: General tips and guidance
 
 ### Body Language Analysis
 - **Emotion Detection**: Happy, neutral, sad, surprised, etc.
@@ -168,13 +168,13 @@ Tonalysis-backend/
 
 ----------------
 
-# 🎤 Voice Transcriber Chrome Extension
+# Voice Transcriber Chrome Extension
 
 A powerful Chrome extension that provides real-time audio transcription using the Web Speech API, enhanced with AI feedback from **Google Gemini**. Capture, analyze, and improve your speech directly in the browser.
 
 ---
 
-## ✨ Features
+## Features
 
 - **Real-time transcription** using browser's built-in speech recognition
 - **AI-Powered Feedback** via **Google Gemini** *(optional integration)*
@@ -190,11 +190,11 @@ A powerful Chrome extension that provides real-time audio transcription using th
 
 ---
 
-## 🧠 AI Feedback with Google Gemini
+## AI Feedback with Google Gemini
 
 You can connect the extension to Google Gemini to receive intelligent feedback on your speaking style, clarity, tone, and pacing.
 
-### 🔍 What AI Feedback Includes
+### What AI Feedback Includes
 
 - Summary of your speaking tone and clarity
 - Highlighted filler words, pauses, or stuttering
@@ -203,7 +203,7 @@ You can connect the extension to Google Gemini to receive intelligent feedback o
 
 ### 🛠️ Setup for AI Feedback
 
-> ⚠️ **Note:** This feature requires a valid **Google Gemini API Key** and internet access.
+> **Note:** This feature requires a valid **Google Gemini API Key** and internet access.
 
 1. **Get an API Key** from [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. In the extension’s **Extension options**, paste your key in the **"Gemini API Key"** field
@@ -214,7 +214,7 @@ You can connect the extension to Google Gemini to receive intelligent feedback o
 
 ---
 
-## 🚀 Installation
+## Installation
 
 1. **Download the Extension Files**
    - Clone or download all files to a local directory:
@@ -243,7 +243,7 @@ You can connect the extension to Google Gemini to receive intelligent feedback o
 
 ---
 
-## 🔬 Advanced Features
+## Advanced Features
 
 ### Language Selection
 - Available in the settings panel
@@ -266,7 +266,7 @@ You can connect the extension to Google Gemini to receive intelligent feedback o
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ### Settings Options
 
@@ -287,7 +287,7 @@ You can connect the extension to Google Gemini to receive intelligent feedback o
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 <details>
 <summary>Common Issues</summary>
@@ -316,7 +316,7 @@ You can connect the extension to Google Gemini to receive intelligent feedback o
 
 ---
 
-## 🌐 Browser Compatibility
+## Browser Compatibility
 
 | Browser | Status |
 |--------|--------|
@@ -327,7 +327,7 @@ You can connect the extension to Google Gemini to receive intelligent feedback o
 
 ---
 
-## 🔒 Privacy & Security
+## Privacy & Security
 
 - Speech recognition is handled **entirely in-browser**
 - Transcriptions and settings are stored **locally**
